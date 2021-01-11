@@ -34,12 +34,12 @@ typedef struct fext
 // https://stackoverflow.com/questions/9642732/parsing-command-line-arguments-in-c
 float *
 calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t *energy_img);
-void resize_image(unsigned char *pixels, int w, int h, int target_width, int target_height);
+void resize_image(unsigned char *pixels, int w, int h, int target_width, int target_height, const char *outname);
 size_t idx(size_t row, size_t col, int w);
 
 int main(int argc, char const *argv[])
 {
-  if (argc != 4)
+  if (argc != 5)
   {
     printf("pass filename and target size!");
     return 1;
@@ -47,6 +47,7 @@ int main(int argc, char const *argv[])
   const char *filename = argv[1];
   int target_width = atoi(argv[2]);
   int target_height = atoi(argv[3]);
+  const char *outname = argv[4];
 
   if (target_height <= 0 || target_width <= 0)
   {
@@ -77,7 +78,7 @@ int main(int argc, char const *argv[])
   printf("\n");
   struct timespec s, e;
   clock_gettime(CLOCK_REALTIME, &s);
-  resize_image(pixels, w, h, 0, 0);
+  resize_image(pixels, w, h, target_width, target_height, outname);
   clock_gettime(CLOCK_REALTIME, &e);
   printf("%lf\n", e.tv_sec - s.tv_sec + (e.tv_nsec - s.tv_nsec) / pow(10, 9));
 
@@ -93,12 +94,12 @@ float calc_min(float a, float b, float c)
   return a < b ? (a < c ? a : c) : (b < c ? b : c);
 }
 
-void resize_image(unsigned char *pixels, int w, int h, int target_width, int target_height)
+void resize_image(unsigned char *pixels, int w, int h, int target_width, int target_height, const char *outname)
 {
   // calculate energy
   pixel3_t *energy_img = malloc(w * h * sizeof(*energy_img));
   float *e = calc_energy3((pixel3_t *)pixels, w, h, energy_img);
-  int i, j;
+  int i, j, k, l;
   fext_t **m = malloc(h * sizeof(*m));
 
   for (i = 0; i < h; i++)
@@ -107,18 +108,6 @@ void resize_image(unsigned char *pixels, int w, int h, int target_width, int tar
   }
 
   float min = FLT_MAX;
-
-  for (i = 0; i < h; i++)
-  {
-    for (j = 0; j < h; j++)
-    {
-      printf("%.2f\t", e[idx(i, j, w)]);
-    }
-    printf("\n");
-  }
-  printf("\n");
-  printf("\n");
-
   for (i = 0; i < w; i++)
   {
     m[0][i].val = e[idx(0, i, w)];
@@ -138,57 +127,45 @@ void resize_image(unsigned char *pixels, int w, int h, int target_width, int tar
     }
   }
 
-  for (i = 0; i < h; i++)
-  {
-    for (j = 0; j < h; j++)
-    {
-      printf("%.2f\t", m[i][j].val);
-    }
-    printf("\n");
-  }
-  printf("\n");
-  for (i = 0; i < h; i++)
-  {
-    for (j = 0; j < h; j++)
-    {
-      printf("%d\t", m[i][j].from);
-    }
-    printf("\n");
-  }
-
-  // for (i = 0; i < 2; i++)
-  // {
-  //   for (j = 0; j < w; j++)
-  //   {
-  //     printf("%.2f\t", m[i][j].val);
-  //   }
-  //   printf("\n");
-  // }
-
   // find the index of minimum energy at the bottom row
 
-  for (j = 0, i = 0; i < w; i++)
+  for (k = 0, i = 0; i < w; i++)
   {
     if (min > m[h - 1][i].val)
     {
       min = m[h - 1][i].val;
-      j = i;
+      k = i;
     }
-    printf("%.2f\n", m[h - 1][i].val);
   }
-  printf("\n%.2f\n", min);
-  printf("\n%d\n", j);
 
+  pixel3_t *resized_img = malloc((w - 1) * h * sizeof(*resized_img));
+  pixel3_t *actual_img = (pixel3_t *)pixels;
   // backtrace to the top
   for (i = h - 1; i >= 0; --i)
   {
-    energy_img[idx(i, j, w)].r = 255;
-    energy_img[idx(i, j, w)].g = 0;
-    energy_img[idx(i, j, w)].b = 0;
-    j = m[i][j].from;
+    for (l = 0, j = 0; j < w; j++, l++)
+    {
+      if (j == k)
+        j++;
+      resized_img[idx(i, l, w - 1)].r = actual_img[idx(i, j, w)].r;
+      resized_img[idx(i, l, w - 1)].g = actual_img[idx(i, j, w)].g;
+      resized_img[idx(i, l, w - 1)].b = actual_img[idx(i, j, w)].b;
+    }
+    energy_img[idx(i, k, w)].r = 255;
+    energy_img[idx(i, k, w)].g = 0;
+    energy_img[idx(i, k, w)].b = 0;
+    k = m[i][k].from;
   }
 
+  stbi_write_png(outname, w - 1, h, CHANNEL, resized_img, (w - 1) * CHANNEL);
   stbi_write_png("output/energy.png", w, h, CHANNEL, energy_img, w * CHANNEL);
+  stbi_image_free(energy_img);
+  stbi_image_free(resized_img);
+  for (i = 0; i < h; i++)
+  {
+    free(m[i]);
+  }
+  free(m);
 }
 
 float *calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t *energy_img)
