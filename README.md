@@ -2,6 +2,6 @@
 
 ## TODO
 
-1- [-] handle multiple seam removals in one go
-2- [-] add horizontal seam removal
-3- [-] update energy image each time
+- [ ] handle multiple seam removals in one go
+- [ ] add horizontal seam removal
+- [ ] update energy image each time
