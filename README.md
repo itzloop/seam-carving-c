@@ -1,4 +1,4 @@
-# Seam carving algorithm in c
+# Seam carving algorithm using c and stb-image
 
 ## TODO
 
