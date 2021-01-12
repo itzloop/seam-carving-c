@@ -1,6 +1,6 @@
 CC = gcc
 # -Wall -O3
-CFLAGS =  -std=c17 -Wall -pedantic -lm -g
+CFLAGS =  -std=c17 -Wall -pedantic -lm -g lib/gifenc/gifenc.c
 OBJECTS = main.o
 
 default: $(OBJECTS)

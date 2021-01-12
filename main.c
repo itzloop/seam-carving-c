@@ -11,6 +11,7 @@
 #include "lib/stb-image/stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "lib/stb-image/stb_image_write.h"
+#include "lib/gifenc/gifenc.h"
 
 #define MAX_ENERGY 624.61988441
 #define CHANNEL 3
@@ -37,7 +38,7 @@ calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t *energy_img);
 pixel3_t *resize_image(pixel3_t *img, fext_t **vm, int vsi, int w, int h);
 size_t idx(size_t row, size_t col, int w);
 fext_t **find_vseam(int w, int h, float *e, int *selected_min);
-void update_energy_img(pixel3_t *img, fext_t **vm, int w, int h, int vsi);
+void update_energy_img(pixel3_t *img, fext_t **vm, int w, int h, int vsi, ge_GIF *gif);
 
 int main(int argc, char const *argv[])
 {
@@ -76,11 +77,39 @@ int main(int argc, char const *argv[])
   struct timespec s, end;
   clock_gettime(CLOCK_REALTIME, &s);
 
+  // red is 256
+  pixel3_t *pallet = malloc(256 * sizeof(*pallet));
+
+  for (int i = 0; i < 255; i++)
+  {
+    pallet[i].r = i;
+    pallet[i].g = i;
+    pallet[i].b = i;
+  }
+  pallet[255].r = 255;
+  pallet[255].g = 0;
+  pallet[255].b = 0;
+
+  for (int i = 0; i < 257; i++)
+  {
+    printf("(%d,%d,%d)\n", pallet[i].r,
+           pallet[i].g,
+           pallet[i].b);
+  }
+
+  ge_GIF *gif = ge_new_gif(
+      "output/example.gif", /* file name */
+      w, h,                 /* canvas size */
+      (uint8_t *)pallet,
+      8, /* palette depth == log2(# of colors) */
+      0  /* infinite loop */
+  );
   for (int i = 0; i < w - target_width; ++i)
   {
     e = calc_energy3(actual_img, w - i, h, i == 0 ? energy_img : NULL);
     vm = find_vseam(w - i, h, e, &vsi);
-    update_energy_img(energy_img, vm, w, h, vsi);
+    update_energy_img(energy_img, vm, w, h, vsi, gif);
+    ge_add_frame(gif, 10);
     resized_img = resize_image(actual_img, vm, vsi, w - (i + 1), h);
 
     // free resources and repeat
@@ -101,6 +130,7 @@ int main(int argc, char const *argv[])
   printf("%lf\n", end.tv_sec - s.tv_sec + (end.tv_nsec - s.tv_nsec) / pow(10, 9));
 
   // free resources at the end
+  ge_close_gif(gif);
   stbi_image_free(pixels);
   stbi_image_free(energy_img);
   stbi_image_free(resized_img);
@@ -156,10 +186,18 @@ fext_t **find_vseam(int w, int h, float *e, int *selected_min)
   return m;
 }
 
-void update_energy_img(pixel3_t *img, fext_t **vm, int w, int h, int vsi)
+void update_energy_img(pixel3_t *img, fext_t **vm, int w, int h, int vsi, ge_GIF *gif)
 {
+  for (int i = 0; i < w * h; i++)
+  {
+    gif->frame[i] = img[i].r == 255 ? 254 : img[i].r;
+  }
+
   for (int i = h - 1; i >= 0; --i)
   {
+
+    gif->frame[idx(i, vsi, w)] = 255;
+
     img[idx(i, vsi, w)].r = 255;
     img[idx(i, vsi, w)].g = 0;
     img[idx(i, vsi, w)].b = 0;
