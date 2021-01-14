@@ -40,7 +40,8 @@ int *find_vseam(int w, int h, float *e);
 int *find_hseam(int w, int h, float *e);
 pixel3_t *remove_seam(pixel3_t *img, int *vseam, int *hseam, int w, int h);
 // void update_energy_img(pixel3_t *img, fext_t **vm, int w, int h, int vsi, ge_GIF *gif);
-void draw_seam(pixel3_t *img, int *vseam, int w, int h);
+void draw_vseam(pixel3_t *img, int *vseam, int w, int h);
+void draw_hseam(pixel3_t *img, int *vseam, int w, int h);
 
 int main(int argc, char const *argv[])
 {
@@ -108,14 +109,8 @@ int main(int argc, char const *argv[])
     e = calc_energy3(img, w - j, h - i, &energy_img);
     vseam = j < w - target_width ? find_vseam(w - j, h, e) : NULL;
     hseam = i < h - target_height ? find_hseam(w, h - i, e) : NULL;
-    if (vseam != NULL)
-      draw_seam(energy_img, vseam, w - j, h - i);
-
-    // for (int k = 0; k < h; k++)
-    // {
-    //   printf("%d\t", hseam[k]);
-    // }
-    // printf("\n");
+    if (hseam != NULL)
+      draw_hseam(energy_img, hseam, w - j, h - i);
 
     // resized_img = remove_seam(img, vseam, hseam, w - (j + 1), h - (i + 1));
 
@@ -281,13 +276,22 @@ int *find_hseam(int w, int h, float *e)
 }
 
 // draw only the vertical seam
-void draw_seam(pixel3_t *img, int *vseam, int w, int h)
+void draw_vseam(pixel3_t *img, int *vseam, int w, int h)
 {
   for (int i = 0; i < h; i++)
   {
     img[idx(i, vseam[i], w)].r = 255;
     img[idx(i, vseam[i], w)].g = 0;
     img[idx(i, vseam[i], w)].b = 0;
+  }
+}
+void draw_hseam(pixel3_t *img, int *hseam, int w, int h)
+{
+  for (int j = 0; j < w; j++)
+  {
+    img[idx(hseam[j], j, w)].r = 255;
+    img[idx(hseam[j], j, w)].g = 0;
+    img[idx(hseam[j], j, w)].b = 0;
   }
 
   // stbi_write_png("output/energy.png", w, h, CHANNEL, img, w * CHANNEL);
