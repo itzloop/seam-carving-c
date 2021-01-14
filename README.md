@@ -3,5 +3,6 @@
 ## TODO
 
 - [x] handle multiple seam removals in one go
-- [ ] add horizontal seam removal
+- [x] add horizontal seam removal
 - [x] update energy image each time
+- [ ] make a cool cli
