@@ -34,13 +34,13 @@ int main(int argc, char const *argv[])
 {
   if (argc != 5)
   {
-    printf("pass filename and target size!");
+    printf("too few arguments!");
     return 1;
   }
   const char *filename = argv[1];
   int target_width = atoi(argv[2]);
   int target_height = atoi(argv[3]);
-  const char *outname = argv[4];
+  int save_gif = atoi(argv[4]);
 
   if (target_height <= 0 || target_width <= 0)
   {
@@ -55,6 +55,11 @@ int main(int argc, char const *argv[])
   {
     printf("image doesn't exist.\n");
     stbi_image_free(img);
+    return 1;
+  }
+  if (target_height > h || target_width > w)
+  {
+    printf("target size must be smaller that image size!\n");
     return 1;
   }
 
@@ -77,56 +82,59 @@ int main(int argc, char const *argv[])
   pallet[255].g = 0;
   pallet[255].b = 0;
 
-  ge_GIF *vertical_gif = ge_new_gif(
-      "output/vertical.gif", /* file name */
-      w, h,                  /* canvas size */
-      (uint8_t *)pallet,
-      8, /* palette depth == log2(# of colors) */
-      1  /* infinite loop */
-  );
-
-  for (int i = 0; i < w - target_width; ++i)
+  // ge_GIF *vertical_gif = ge_new_gif(
+  //     "output/vresult.gif", /* file name */
+  //     w, h,                 /* canvas size */
+  //     (uint8_t *)pallet,
+  //     8, /* palette depth == log2(# of colors) */
+  //     1  /* infinite loop */
+  // );
+  ge_GIF *gif =
+      save_gif == 0 ? NULL : ge_new_gif("output/result.gif",  /* file name */
+                                        w, h,                 /* canvas size */
+                                        (uint8_t *)pallet, 8, /* palette depth == log2(# of colors) */
+                                        1                     /* infinite loop */
+                             );
+  int i = 0, j = 0;
+  while (i < h - target_height || j < w - target_width)
   {
-    e = calc_energy3(img, w - i, h, &energy_img);
-    vseam = find_vseam(w - i, h, e);
-    draw_vseam(energy_img, vseam, w - i, h, vertical_gif);
-    ge_add_frame(vertical_gif, 10);
-    resized_img = remove_vseam(img, vseam, w - (i + 1), h);
-    // free resources at the end
+    resized_img = NULL;
+    e = calc_energy3(img, w - j, h - i, &energy_img);
+    vseam = j < w - target_width ? find_vseam(w - j, h - i, e) : NULL;
+    hseam = i < h - target_height ? find_hseam(w - j, h - i, e) : NULL;
+    if (vseam)
+    {
+      draw_vseam(energy_img, vseam, w - j, h - i, NULL);
+      // ge_add_frame(vertical_gif, 10);
+      resized_img = remove_vseam(img, vseam, w - (j + 1), h - i);
+      free(vseam);
+    }
+    if (hseam)
+    {
+      draw_hseam(energy_img, hseam, w - j, h - i, gif);
+      if (gif)
+        ge_add_frame(gif, 5);
+      resized_img = remove_hseam(resized_img != NULL ? resized_img : img, hseam,
+                                 j < w - target_width ? w - (j + 1) : target_width,
+                                 h - (i + 1));
+      free(hseam);
+    }
+
+    i += 1 * (i < h - target_height);
+    j += 1 * (j < w - target_width);
+
     free(img);
     img = resized_img;
-    free(vseam);
     free(e);
     free(energy_img);
   }
-
-  ge_close_gif(vertical_gif);
-  ge_GIF *horizontal_gif = ge_new_gif(
-      "output/horziontal.gif", /* file name */
-      target_width, h,         /* canvas size */
-      (uint8_t *)pallet,
-      8, /* palette depth == log2(# of colors) */
-      1  /* infinite loop */
-  );
-  for (int i = 0; i < h - target_height; ++i)
-  {
-    e = calc_energy3(img, target_width, h - i, &energy_img);
-    hseam = find_hseam(target_width, h - i, e);
-    draw_hseam(energy_img, hseam, target_width, h - i, horizontal_gif);
-    ge_add_frame(horizontal_gif, 10);
-    resized_img = remove_hseam(img, hseam, target_width, h - (i + 1));
-    // free resources at the end
-    free(img);
-    img = resized_img;
-    free(hseam);
-    free(e);
-    free(energy_img);
-  }
-  ge_close_gif(vertical_gif);
 
   clock_gettime(CLOCK_REALTIME, &end);
-  stbi_write_png("output/sample.png", target_width, target_width, CHANNEL, resized_img, target_width * CHANNEL);
+  stbi_write_png("output/result.png", target_width, target_height, CHANNEL, resized_img, target_width * CHANNEL);
   stbi_image_free(resized_img);
+  // ge_close_gif(vertical_gif);
+  if (gif)
+    ge_close_gif(gif);
   return 0;
 }
 
@@ -252,20 +260,24 @@ int *find_hseam(int w, int h, float *e)
 // draw only the vertical seam
 void draw_vseam(pixel3_t *img, int *vseam, int w, int h, ge_GIF *gif)
 {
-  gif->w = w;
-  gif->h = h;
-
-  for (int i = 0; i < h; i++)
+  if (gif != NULL)
   {
-    for (int j = 0; j < w; j++)
+    gif->w = w;
+    gif->h = h;
+
+    for (int i = 0; i < h; i++)
     {
-      gif->frame[idx(i, j, w)] = img[idx(i, j, w)].r;
+      for (int j = 0; j < w; j++)
+      {
+        gif->frame[idx(i, j, w)] = img[idx(i, j, w)].r;
+      }
     }
   }
 
   for (int i = 0; i < h; i++)
   {
-    gif->frame[idx(i, vseam[i], w)] = 255;
+    if (gif != NULL)
+      gif->frame[idx(i, vseam[i], w)] = 255;
     img[idx(i, vseam[i], w)].r = 255;
     img[idx(i, vseam[i], w)].g = 0;
     img[idx(i, vseam[i], w)].b = 0;
@@ -273,19 +285,23 @@ void draw_vseam(pixel3_t *img, int *vseam, int w, int h, ge_GIF *gif)
 }
 void draw_hseam(pixel3_t *img, int *hseam, int w, int h, ge_GIF *gif)
 {
-  gif->w = w;
-  gif->h = h;
-  for (int i = 0; i < h; i++)
+  if (gif != NULL)
   {
-    for (int j = 0; j < w; j++)
+    gif->w = w;
+    gif->h = h;
+    for (int i = 0; i < h; i++)
     {
-      gif->frame[idx(i, j, w)] = img[idx(i, j, w)].r;
+      for (int j = 0; j < w; j++)
+      {
+        gif->frame[idx(i, j, w)] = img[idx(i, j, w)].r;
+      }
     }
   }
 
   for (int j = 0; j < w; j++)
   {
-    gif->frame[idx(hseam[j], j, w)] = 255;
+    if (gif != NULL)
+      gif->frame[idx(hseam[j], j, w)] = 255;
     img[idx(hseam[j], j, w)].r = 255;
     img[idx(hseam[j], j, w)].g = 0;
     img[idx(hseam[j], j, w)].b = 0;
@@ -335,50 +351,6 @@ pixel3_t *remove_hseam(pixel3_t *img, int *hseam, int w, int h)
     }
   }
   return resized_img;
-}
-
-pixel3_t *remove_seam(pixel3_t *img, int *vseam, int *hseam, int w, int h)
-{
-
-  if (vseam == NULL && hseam == NULL)
-    return NULL;
-
-  pixel3_t *removed_col_img = malloc(w * (h + 1) * sizeof(*removed_col_img));
-
-  if (vseam == NULL)
-    goto vertical;
-
-  for (int i = 0; i < h + 1; ++i)
-  {
-    for (int j = 0, l = 0; j < w; ++j, ++l)
-    {
-      if (j == vseam[i])
-        j++;
-      removed_col_img[idx(i, l, w)].r = img[idx(i, j, w + 1)].r;
-      removed_col_img[idx(i, l, w)].g = img[idx(i, j, w + 1)].g;
-      removed_col_img[idx(i, l, w)].b = img[idx(i, j, w + 1)].b;
-    }
-  }
-
-vertical:
-  if (hseam == NULL)
-    return removed_col_img;
-  pixel3_t *removed_row_img = malloc(w * h * sizeof(*removed_row_img));
-
-  for (int j = 0; j < w; ++j)
-  {
-    for (int i = 0, l = 0; i < h; ++i, ++l)
-    {
-      if (i == hseam[j])
-        i++;
-
-      removed_row_img[idx(l, j, w)].r = removed_col_img[idx(i, j, w)].r;
-      removed_row_img[idx(l, j, w)].g = removed_col_img[idx(i, j, w)].g;
-      removed_row_img[idx(l, j, w)].b = removed_col_img[idx(i, j, w)].b;
-    }
-  }
-  free(removed_col_img);
-  return removed_row_img;
 }
 
 float *calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t **energy_img)
