@@ -1,4 +1,7 @@
 #define _GNU_SOURCE
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -7,44 +10,15 @@
 #include <time.h>
 #include <float.h>
 #include <stdarg.h>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "lib/stb-image/stb_image.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "lib/stb-image/stb_image_write.h"
 #include "lib/gifenc/gifenc.h"
-
-#define MAX_ENERGY 624.61988441
-#define CHANNEL 3
-
-typedef unsigned char pixel_t;
-typedef struct pixel3
-{
-  unsigned char r;
-  unsigned char g;
-  unsigned char b;
-} pixel3_t;
-
-typedef struct fext
-{
-  float val;
-  int from;
-} fext_t;
+#include "includes/seam_carve.h"
+#include "lib/stb-image/stb_image.h"
+#include "lib/stb-image/stb_image_write.h"
 
 // TODO parse argument https://www.gnu.org/software/libc/manual/html_node/Argp.html
 // void help();
 // https://stackoverflow.com/questions/9642732/parsing-command-line-arguments-in-c
-float *calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t **energy_img);
-// pixel3_t *resize_image(pixel3_t *img, fext_t **vm, int vsi, int w, int h);
-size_t idx(size_t row, size_t col, int w);
-int *find_vseam(int w, int h, float *e);
-int *find_hseam(int w, int h, float *e);
-pixel3_t *remove_seam(pixel3_t *img, int *vseam, int *hseam, int w, int h);
-// void update_energy_img(pixel3_t *img, fext_t **vm, int w, int h, int vsi, ge_GIF *gif);
-void draw_vseam(pixel3_t *img, int *vseam, int w, int h, ge_GIF *gif);
-void draw_hseam(pixel3_t *img, int *hseam, int w, int h, ge_GIF *gif);
-pixel3_t *remove_vseam(pixel3_t *img, int *vseam, int w, int h);
-pixel3_t *remove_hseam(pixel3_t *img, int *hseam, int w, int h);
+
 char *create_str(const char *format, ...)
 {
   va_list args;
@@ -102,12 +76,7 @@ int main(int argc, char const *argv[])
   pallet[255].r = 255;
   pallet[255].g = 0;
   pallet[255].b = 0;
-  // for (int i = 0; i < 256; i++)
-  // {
-  //   printf("(%d,%d,%d)\n", pallet[i].r,
-  //          pallet[i].g,
-  //          pallet[i].b);
-  // }
+
   ge_GIF *vertical_gif = ge_new_gif(
       "output/vertical.gif", /* file name */
       w, h,                  /* canvas size */
@@ -156,16 +125,7 @@ int main(int argc, char const *argv[])
   ge_close_gif(vertical_gif);
 
   clock_gettime(CLOCK_REALTIME, &end);
-  // stbi_write_png("output/energy.png", target_width, h - i, CHANNEL, energy_img, target_width * CHANNEL);
   stbi_write_png("output/sample.png", target_width, target_width, CHANNEL, resized_img, target_width * CHANNEL);
-  // stbi_write_png(outname, target_width, h, CHANNEL, resized_img, target_width * CHANNEL);
-  // stbi_write_png("output/energy.png", w, h, CHANNEL, energy_img, w * CHANNEL);
-  // printf("%lf\n", end.tv_sec - s.tv_sec + (end.tv_nsec - s.tv_nsec) / pow(10, 9));
-
-  // free resources at the end
-
-  // stbi_image_free(pixels);
-  // stbi_image_free(energy_img);
   stbi_image_free(resized_img);
   return 0;
 }
