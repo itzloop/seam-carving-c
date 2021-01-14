@@ -33,7 +33,7 @@ typedef struct fext
 // TODO parse argument https://www.gnu.org/software/libc/manual/html_node/Argp.html
 // void help();
 // https://stackoverflow.com/questions/9642732/parsing-command-line-arguments-in-c
-float *calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t *energy_img);
+float *calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t **energy_img);
 // pixel3_t *resize_image(pixel3_t *img, fext_t **vm, int vsi, int w, int h);
 size_t idx(size_t row, size_t col, int w);
 int *find_vseam(int w, int h, float *e);
@@ -70,7 +70,7 @@ int main(int argc, char const *argv[])
     return 1;
   }
 
-  pixel3_t *resized_img, *energy_img;
+  pixel3_t *resized_img, *energy_img = NULL;
   float *e;           // energy table
   int *vseam, *hseam; // vertical and horizontal seams
 
@@ -79,7 +79,6 @@ int main(int argc, char const *argv[])
 
   // red is 255
   // pixel3_t *pallet = malloc(256 * sizeof(*pallet));
-
   // for (int i = 0; i < 255; i++)
   // {
   //   pallet[i].r = i;
@@ -89,14 +88,12 @@ int main(int argc, char const *argv[])
   // pallet[255].r = 255;
   // pallet[255].g = 0;
   // pallet[255].b = 0;
-
   // for (int i = 0; i < 257; i++)
   // {
   //   printf("(%d,%d,%d)\n", pallet[i].r,
   //          pallet[i].g,
   //          pallet[i].b);
   // }
-
   // ge_GIF *gif = ge_new_gif(
   //     "output/example.gif", /* file name */
   //     w, h,                 /* canvas size */
@@ -108,9 +105,11 @@ int main(int argc, char const *argv[])
   int i = 0, j = 0;
   while (j < w - target_width || i < h - target_height)
   {
-    e = calc_energy3(img, w - j, h - i, energy_img);
-    // vseam = j < w - target_width ? find_vseam(w - j, h, e) : NULL;
+    e = calc_energy3(img, w - j, h - i, &energy_img);
+    vseam = j < w - target_width ? find_vseam(w - j, h, e) : NULL;
     hseam = i < h - target_height ? find_hseam(w, h - i, e) : NULL;
+    if (vseam != NULL)
+      draw_seam(energy_img, vseam, w - j, h - i);
 
     // for (int k = 0; k < h; k++)
     // {
@@ -118,12 +117,12 @@ int main(int argc, char const *argv[])
     // }
     // printf("\n");
 
-    // draw_seam(energy_img, vseam, w - j, h - i);
     // resized_img = remove_seam(img, vseam, hseam, w - (j + 1), h - (i + 1));
 
     // free(img);
     // img = resized_img;
-    // stbi_write_png("output/energy.png", w, h, CHANNEL, energy_img, w * CHANNEL);
+    printf("%p\n", energy_img);
+    stbi_write_png("output/energy.png", w - j, h - i, CHANNEL, energy_img, (w - j) * CHANNEL);
     // stbi_write_png(outname, target_width, target_height, CHANNEL, img, target_width * CHANNEL);
     // free(energy_img);
     j += 1 * (j < w - target_width);
@@ -290,6 +289,8 @@ void draw_seam(pixel3_t *img, int *vseam, int w, int h)
     img[idx(i, vseam[i], w)].g = 0;
     img[idx(i, vseam[i], w)].b = 0;
   }
+
+  // stbi_write_png("output/energy.png", w, h, CHANNEL, img, w * CHANNEL);
 }
 
 pixel3_t *remove_seam(pixel3_t *img, int *vseam, int *hseam, int w, int h)
@@ -322,11 +323,11 @@ pixel3_t *remove_seam(pixel3_t *img, int *vseam, int *hseam, int w, int h)
   return resized_img;
 }
 
-float *calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t *energy_img)
+float *calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t **energy_img)
 {
   int rx, ry, gx, gy, bx, by;
   float dx, dy;
-  pixel3_t *img = malloc(w * h * sizeof(*img));
+  *energy_img = malloc(w * h * sizeof(*energy_img));
   float *energies = malloc(w * h * sizeof(float));
 
   for (int i = 0; i < h; i++)
@@ -344,14 +345,12 @@ float *calc_energy3(pixel3_t *pixels, int w, int h, pixel3_t *energy_img)
       dy = (pow(ry, 2) + pow(gy, 2) + pow(by, 2));
       energies[idx(i, j, w)] = sqrt(dx + dy);
 
-      img[idx(i, j, w)].r = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
-      img[idx(i, j, w)].g = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
-      img[idx(i, j, w)].b = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
+      (*energy_img)[idx(i, j, w)].r = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
+      (*energy_img)[idx(i, j, w)].g = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
+      (*energy_img)[idx(i, j, w)].b = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
       // printf("%.3f\n", (energies[idx(i, j, w)] / MAX_ENERGY));
     }
   }
-
-  energy_img = img;
 
   return energies;
 }
