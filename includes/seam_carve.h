@@ -1,6 +1,6 @@
-#pragma once
-#include <stddef.h>
-
+// contents of includes/seam_carve.h
+// this file has all the information about what the program is doing
+// the implementations are in main.c
 #define MAX_ENERGY 624.61988441 // this value is calucated by maximizing the energy formula
 #define CHANNEL 3               // Channel corresponds to RGB
 
@@ -19,7 +19,8 @@ typedef struct pixel3
 // the following forumla:
 // Horizontal: M[i,j].val = E[i,j] + MIN(M[i,j-1] , M[i - 1,j-1] ,M[i + 1,j-1])
 // Vertical: M[i,j].val = E[i,j] + MIN(M[i - 1,j] , M[i - 1,j-1] ,M[i - 1,j+1])
-// and the chosen element's index is stored in variable from of fext.
+// where `M` is the table containing the shortest path and `E` contains energy of each pixel.
+// The chosen element's index is stored in variable `from` of fext.
 
 typedef struct fext
 {
@@ -31,6 +32,13 @@ typedef struct fext
 // it also makes a another image from the enenrgy and returns it
 // as an out prameter energy_img
 float *calc_energy3(pixel3_t *img, int w, int h, pixel3_t **energy_img);
+
+// calculates the min btween a,b and c and set the index based on
+// following rules:
+// if a is min j is the index
+// if b is min j - 1 is the index
+// if c is min j + 1 is the index
+float calc_min(float a, float b, float c, int j, int *index);
 
 // finds a vertical seam from table of energies
 int *find_vseam(int w, int h, float *e);

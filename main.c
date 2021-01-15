@@ -16,8 +16,9 @@
 #include "lib/stb-image/stb_image_write.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-
 #include <unistd.h>
+
+#define NANO 1000000000
 
 char *create_str(const char *format, ...)
 {
@@ -73,11 +74,12 @@ int main(int argc, char const *argv[])
   float *e;           // energy table
   int *vseam, *hseam; // vertical and horizontal seams
 
-  struct timespec s, end;
-  clock_gettime(CLOCK_REALTIME, &s);
+  struct timespec start, end;
+  clock_gettime(CLOCK_REALTIME, &start);
 
   // red is 255
-  pixel3_t *pallet = malloc(256 * sizeof(*pallet));
+  // this is the collors used in the gif
+  pixel3_t pallet[256];
   for (int i = 0; i < 255; i++)
   {
     pallet[i].r = i;
@@ -95,12 +97,13 @@ int main(int argc, char const *argv[])
                                         1                     /* infinite loop */
                              );
   int i = 0, j = 0;
-  while (i < h - target_height || j < w - target_width)
+  printf("calculation in progress...");
+  while (i < target_height || j < target_width)
   {
     resized_img = NULL;
     e = calc_energy3(img, w - j, h - i, &energy_img);
-    vseam = j < w - target_width ? find_vseam(w - j, h - i, e) : NULL;
-    hseam = i < h - target_height ? find_hseam(w - j, h - i, e) : NULL;
+    vseam = j < target_width ? find_vseam(w - j, h - i, e) : NULL;
+    hseam = i < target_height ? find_hseam(w - j, h - i, e) : NULL;
     if (vseam)
     {
       draw_vseam(energy_img, vseam, w - j, h - i, NULL);
@@ -114,13 +117,13 @@ int main(int argc, char const *argv[])
       if (gif)
         ge_add_frame(gif, 10);
       resized_img = remove_hseam(resized_img != NULL ? resized_img : img, hseam,
-                                 j < w - target_width ? w - (j + 1) : target_width,
+                                 j < target_width ? w - (j + 1) : target_width,
                                  h - (i + 1));
       free(hseam);
     }
 
-    i += 1 * (i < h - target_height);
-    j += 1 * (j < w - target_width);
+    i += 1 * (i < target_height);
+    j += 1 * (j < target_width);
 
     free(img);
     img = resized_img;
@@ -129,9 +132,18 @@ int main(int argc, char const *argv[])
   }
 
   clock_gettime(CLOCK_REALTIME, &end);
-  stbi_write_png("output/result.png", target_width, target_height, CHANNEL, resized_img, target_width * CHANNEL);
-  stbi_image_free(resized_img);
-  // ge_close_gif(vertical_gif);
+  printf("\nrunnig time(seconds): %lf\n",
+         end.tv_sec - start.tv_sec +
+             (double)(end.tv_nsec - start.tv_nsec) / NANO);
+
+  stbi_write_png("output/result.png",
+                 w - target_width,
+                 h - target_height,
+                 CHANNEL,
+                 resized_img,
+                 (w - target_width) * CHANNEL);
+
+  free(resized_img);
   if (gif)
     ge_close_gif(gif);
   return 0;
@@ -281,6 +293,7 @@ void draw_vseam(pixel3_t *img, int *vseam, int w, int h, ge_GIF *gif)
     img[idx(i, vseam[i], w)].b = 0;
   }
 }
+
 void draw_hseam(pixel3_t *img, int *hseam, int w, int h, ge_GIF *gif)
 {
   if (gif != NULL)
@@ -315,7 +328,7 @@ pixel3_t *remove_vseam(pixel3_t *img, int *vseam, int w, int h)
 
   for (int i = 0; i < h; ++i)
   {
-    for (int j = 0, l = 0; j < w; ++j, ++l)
+    for (int j = 0, l = 0; j < w + 1; ++j, ++l)
     {
       if (j == vseam[i])
         j++;
@@ -336,7 +349,7 @@ pixel3_t *remove_hseam(pixel3_t *img, int *hseam, int w, int h)
 
   for (int j = 0; j < w; ++j)
   {
-    for (int i = 0, l = 0; i < h; ++i, ++l)
+    for (int i = 0, l = 0; i < h + 1; ++i, ++l)
     {
       if (i == hseam[j])
         i++;
