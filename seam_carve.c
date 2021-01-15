@@ -3,7 +3,7 @@
 #include <math.h>
 #include "includes/seam_carve.h"
 #include "lib/gifenc/gifenc.h"
-
+#include <stdio.h>
 float calc_min(float a, float b, float c, int j, int *index)
 {
     *index = a < b ? (a < c ? j : j + 1) : (b < c ? j - 1 : j + 1);
@@ -200,6 +200,7 @@ pixel3_t *remove_hseam(pixel3_t *img, int *hseam, int w, int h)
 {
     if (hseam == NULL)
         return NULL;
+    printf("w:%d h:%d", w, h);
     pixel3_t *resized_img = malloc(w * h * sizeof(*resized_img));
 
     for (int j = 0; j < w; ++j)

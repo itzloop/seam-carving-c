@@ -43,7 +43,7 @@ int main(int argc, char const *argv[])
   int target_height = atoi(argv[3]);
   int save_gif = atoi(argv[4]);
 
-  if (target_height <= 0 || target_width <= 0)
+  if (target_height < 0 || target_width < 0)
   {
     printf("invalid pixels.\n");
     return 1;
@@ -61,6 +61,13 @@ int main(int argc, char const *argv[])
   if (target_height > h || target_width > w)
   {
     printf("target size must be smaller that image size!\n");
+    stbi_image_free(img);
+    return 1;
+  }
+  if (target_height == 0 && target_width == 0)
+  {
+    printf("target size is 0. No point in running the program!\n");
+    stbi_image_free(img);
     return 1;
   }
   struct stat st = {0};
@@ -70,7 +77,7 @@ int main(int argc, char const *argv[])
     mkdir("output/", 0700);
   }
 
-  pixel3_t *resized_img, *energy_img = NULL;
+  pixel3_t *resized_img = NULL, *energy_img = NULL;
   float *e;           // energy table
   int *vseam, *hseam; // vertical and horizontal seams
 
@@ -98,29 +105,37 @@ int main(int argc, char const *argv[])
                              );
   int i = 0, j = 0;
   printf("calculation in progress...");
+  fflush(stdout);
   while (i < target_height || j < target_width)
   {
+    printf("i:%d , j: %d\n", i, j);
     resized_img = NULL;
     e = calc_energy3(img, w - j, h - i, &energy_img);
     vseam = j < target_width ? find_vseam(w - j, h - i, e) : NULL;
     hseam = i < target_height ? find_hseam(w - j, h - i, e) : NULL;
     if (vseam)
     {
-      draw_vseam(energy_img, vseam, w - j, h - i, NULL);
+      draw_vseam(energy_img, vseam, w - j, h - i, hseam ? NULL : gif);
       // ge_add_frame(vertical_gif, 10);
       resized_img = remove_vseam(img, vseam, w - (j + 1), h - i);
+      if (hseam)
+      {
+        free(img);
+        img = resized_img;
+      }
       free(vseam);
     }
     if (hseam)
     {
       draw_hseam(energy_img, hseam, w - j, h - i, gif);
-      if (gif)
-        ge_add_frame(gif, 10);
-      resized_img = remove_hseam(resized_img != NULL ? resized_img : img, hseam,
-                                 j < target_width ? w - (j + 1) : target_width,
+      resized_img = remove_hseam(img, hseam,
+                                 vseam ? w - (j + 1) : w - target_width,
                                  h - (i + 1));
       free(hseam);
     }
+
+    if (gif)
+      ge_add_frame(gif, 7);
 
     i += 1 * (i < target_height);
     j += 1 * (j < target_width);
