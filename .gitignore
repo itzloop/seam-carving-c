@@ -2,3 +2,5 @@ output
 *.o
 *.log
 .vscode
+*.zip
+*.html

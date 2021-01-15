@@ -1,10 +1,11 @@
 // contents of includes/seam_carve.h
 // this file has all the information about what the program is doing
-// the implementations are in main.c
+// the implementations are in seam_carve.c
 #define MAX_ENERGY 624.61988441 // this value is calucated by maximizing the energy formula
 #define CHANNEL 3               // Channel corresponds to RGB
 
-typedef unsigned char pixel_t;
+// forward declation
+typedef struct ge_GIF ge_GIF;
 
 // this struct contains the RGB values for one pixel
 typedef struct pixel3
