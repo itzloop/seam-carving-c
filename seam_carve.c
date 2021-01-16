@@ -10,7 +10,7 @@ float calc_min(float a, float b, float c, int j, int *index)
     return a < b ? (a < c ? a : c) : (b < c ? b : c);
 }
 
-int *find_vseam(int w, int h, float *e)
+void find_vseam(int **seam, int w, int h, float *e)
 {
     int i, j, k;
     float min = FLT_MAX, a, b, c;
@@ -49,11 +49,11 @@ int *find_vseam(int w, int h, float *e)
         }
     }
     // bactrace to top and create the seam
-    int *seam = malloc(h * sizeof(*seam));
+    *seam = *seam == NULL ? malloc(h * sizeof(int)) : realloc(*seam, h * sizeof(int));
 
     for (i = h - 1; i >= 0; --i)
     {
-        seam[i] = k;
+        (*seam)[i] = k;
         k = m[i][k].from;
     }
     // free resources
@@ -62,11 +62,9 @@ int *find_vseam(int w, int h, float *e)
         free(m[j]);
     }
     free(m);
-
-    return seam;
 }
 
-int *find_hseam(int w, int h, float *e)
+void find_hseam(int **seam, int w, int h, float *e)
 {
     int i, j, k;
     float min = FLT_MAX;
@@ -106,10 +104,10 @@ int *find_hseam(int w, int h, float *e)
         }
     }
     // bactrace to top and create the seam
-    int *seam = malloc(w * sizeof(*seam));
+    *seam = *seam == NULL ? malloc(w * sizeof(int)) : realloc(*seam, w * sizeof(int));
     for (i = w - 1; i >= 0; --i)
     {
-        seam[i] = k;
+        (*seam)[i] = k;
         k = m[k][i].from;
     }
 
@@ -119,8 +117,6 @@ int *find_hseam(int w, int h, float *e)
         free(m[j]);
     }
     free(m);
-
-    return seam;
 }
 
 void draw_vseam(pixel3_t *img, int *vseam, int w, int h, ge_GIF *gif)
@@ -174,12 +170,15 @@ void draw_hseam(pixel3_t *img, int *hseam, int w, int h, ge_GIF *gif)
     }
 }
 
-pixel3_t *remove_vseam(pixel3_t *img, int *vseam, int w, int h)
+void remove_vseam(pixel3_t **img, int *vseam, int w, int h)
 {
-    if (vseam == NULL)
-        return NULL;
+    if (vseam == NULL || *img == NULL)
+    {
+        printf("vseam or img can't be null\n");
+        return;
+    }
 
-    pixel3_t *resized_img = malloc(w * h * sizeof(*resized_img));
+    pixel3_t *temp = *img;
 
     for (int i = 0; i < h; ++i)
     {
@@ -187,21 +186,23 @@ pixel3_t *remove_vseam(pixel3_t *img, int *vseam, int w, int h)
         {
             if (j == vseam[i])
                 j++;
-            resized_img[idx(i, l, w)].r = img[idx(i, j, w + 1)].r;
-            resized_img[idx(i, l, w)].g = img[idx(i, j, w + 1)].g;
-            resized_img[idx(i, l, w)].b = img[idx(i, j, w + 1)].b;
+            temp[idx(i, l, w)].r = temp[idx(i, j, w + 1)].r;
+            temp[idx(i, l, w)].g = temp[idx(i, j, w + 1)].g;
+            temp[idx(i, l, w)].b = temp[idx(i, j, w + 1)].b;
         }
     }
 
-    return resized_img;
+    *img = realloc(*img, w * h * sizeof(pixel3_t));
 }
 
-pixel3_t *remove_hseam(pixel3_t *img, int *hseam, int w, int h)
+void remove_hseam(pixel3_t **img, int *hseam, int w, int h)
 {
-    if (hseam == NULL)
-        return NULL;
-    printf("w:%d h:%d", w, h);
-    pixel3_t *resized_img = malloc(w * h * sizeof(*resized_img));
+    if (hseam == NULL || *img == NULL)
+    {
+        printf("hseam or img can't be null\n");
+        return;
+    }
+    pixel3_t *temp = *img;
 
     for (int j = 0; j < w; ++j)
     {
@@ -210,21 +211,21 @@ pixel3_t *remove_hseam(pixel3_t *img, int *hseam, int w, int h)
             if (i == hseam[j])
                 i++;
 
-            resized_img[idx(l, j, w)].r = img[idx(i, j, w)].r;
-            resized_img[idx(l, j, w)].g = img[idx(i, j, w)].g;
-            resized_img[idx(l, j, w)].b = img[idx(i, j, w)].b;
+            temp[idx(l, j, w)].r = temp[idx(i, j, w)].r;
+            temp[idx(l, j, w)].g = temp[idx(i, j, w)].g;
+            temp[idx(l, j, w)].b = temp[idx(i, j, w)].b;
         }
     }
-    return resized_img;
+    *img = realloc(*img, w * h * sizeof(pixel3_t));
 }
 
-float *calc_energy3(pixel3_t *img, int w, int h, pixel3_t **energy_img)
+void calc_energy3(pixel3_t *img, int w, int h, pixel3_t **energy_img, float **e)
 {
     int rx, ry, gx, gy, bx, by;
     float dx, dy;
-    *energy_img = malloc(w * h * sizeof(*energy_img));
-    float *energies = malloc(w * h * sizeof(float));
+    *energy_img = *energy_img == NULL ? malloc(w * h * sizeof(*energy_img)) : realloc(*energy_img, w * h * sizeof(*energy_img));
 
+    *e = *e == NULL ? malloc(w * h * sizeof(float)) : realloc(*e, w * h * sizeof(float));
     for (int i = 0; i < h; i++)
     {
         for (int j = 0; j < w; j++)
@@ -238,15 +239,13 @@ float *calc_energy3(pixel3_t *img, int w, int h, pixel3_t **energy_img)
 
             dx = (pow(rx, 2) + pow(gx, 2) + pow(bx, 2));
             dy = (pow(ry, 2) + pow(gy, 2) + pow(by, 2));
-            energies[idx(i, j, w)] = sqrt(dx + dy);
+            (*e)[idx(i, j, w)] = sqrt(dx + dy);
 
-            (*energy_img)[idx(i, j, w)].r = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
-            (*energy_img)[idx(i, j, w)].g = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
-            (*energy_img)[idx(i, j, w)].b = (energies[idx(i, j, w)] / MAX_ENERGY) * 255;
+            (*energy_img)[idx(i, j, w)].r = ((*e)[idx(i, j, w)] / MAX_ENERGY) * 255;
+            (*energy_img)[idx(i, j, w)].g = ((*e)[idx(i, j, w)] / MAX_ENERGY) * 255;
+            (*energy_img)[idx(i, j, w)].b = ((*e)[idx(i, j, w)] / MAX_ENERGY) * 255;
         }
     }
-
-    return energies;
 }
 
 size_t idx(size_t row, size_t col, int w)

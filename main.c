@@ -58,9 +58,9 @@ int main(int argc, char const *argv[])
     stbi_image_free(img);
     return 1;
   }
-  if (target_height > h || target_width > w)
+  if (h - target_height < 3 || w - target_width < 3)
   {
-    printf("target size must be smaller that image size!\n");
+    printf("target size is too close(or bigger) to the actual size. why?! :(\n");
     stbi_image_free(img);
     return 1;
   }
@@ -70,6 +70,7 @@ int main(int argc, char const *argv[])
     stbi_image_free(img);
     return 1;
   }
+
   struct stat st = {0};
 
   if (stat("output/", &st) == -1)
@@ -77,9 +78,9 @@ int main(int argc, char const *argv[])
     mkdir("output/", 0700);
   }
 
-  pixel3_t *resized_img = NULL, *energy_img = NULL;
-  float *e;           // energy table
-  int *vseam, *hseam; // vertical and horizontal seams
+  pixel3_t *energy_img = NULL;
+  float *e = NULL;                  // energy table
+  int *vseam = NULL, *hseam = NULL; // vertical and horizontal seams
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
@@ -109,29 +110,21 @@ int main(int argc, char const *argv[])
   while (i < target_height || j < target_width)
   {
     printf("i:%d , j: %d\n", i, j);
-    resized_img = NULL;
-    e = calc_energy3(img, w - j, h - i, &energy_img);
-    vseam = j < target_width ? find_vseam(w - j, h - i, e) : NULL;
-    hseam = i < target_height ? find_hseam(w - j, h - i, e) : NULL;
-    if (vseam)
+    calc_energy3(img, w - j, h - i, &energy_img, &e);
+    if (j < target_width)
     {
-      draw_vseam(energy_img, vseam, w - j, h - i, hseam ? NULL : gif);
+      find_vseam(&vseam, w - j, h - i, e);
+      draw_vseam(energy_img, vseam, w - j, h - i, i < target_height ? NULL : gif);
       // ge_add_frame(vertical_gif, 10);
-      resized_img = remove_vseam(img, vseam, w - (j + 1), h - i);
-      if (hseam)
-      {
-        free(img);
-        img = resized_img;
-      }
-      free(vseam);
+      remove_vseam(&img, vseam, w - (j + 1), h - i);
     }
-    if (hseam)
+    if (i < target_height)
     {
+      find_hseam(&hseam, w - j, h - i, e);
       draw_hseam(energy_img, hseam, w - j, h - i, gif);
-      resized_img = remove_hseam(img, hseam,
-                                 vseam ? w - (j + 1) : w - target_width,
-                                 h - (i + 1));
-      free(hseam);
+      remove_hseam(&img, hseam,
+                   j < target_width ? w - (j + 1) : w - target_width,
+                   h - (i + 1));
     }
 
     if (gif)
@@ -139,11 +132,6 @@ int main(int argc, char const *argv[])
 
     i += 1 * (i < target_height);
     j += 1 * (j < target_width);
-
-    free(img);
-    img = resized_img;
-    free(e);
-    free(energy_img);
   }
 
   clock_gettime(CLOCK_REALTIME, &end);
@@ -155,10 +143,15 @@ int main(int argc, char const *argv[])
                  w - target_width,
                  h - target_height,
                  CHANNEL,
-                 resized_img,
+                 img,
                  (w - target_width) * CHANNEL);
 
-  free(resized_img);
+  // free resources
+  free(img);
+  free(e);
+  free(energy_img);
+  free(vseam);
+  free(hseam);
   if (gif)
     ge_close_gif(gif);
   return 0;
