@@ -4,27 +4,28 @@
 #include "includes/seam_carve.h"
 #include "lib/gifenc/gifenc.h"
 #include <stdio.h>
+#include <stdbool.h>
+
 float calc_min(float a, float b, float c, int j, int *index)
 {
     *index = a < b ? (a < c ? j : j + 1) : (b < c ? j - 1 : j + 1);
     return a < b ? (a < c ? a : c) : (b < c ? b : c);
 }
 
-void find_vseam(int **seam, int w, int h, float *e)
+void find_vseam(int **seam, int w, int h, float *e, fext_t ***m)
 {
     int i, j, k;
     float min = FLT_MAX, a, b, c;
-    fext_t **m = malloc(h * sizeof(*m));
-
-    for (i = 0; i < h; ++i)
-    {
-        m[i] = malloc(w * sizeof(**m));
-    }
+    // *m = realloc(*m, h * sizeof(fext_t *));
+    // for (i = 0; i < h; ++i)
+    // {
+    //     (*m)[i] = realloc((*m)[i], w * sizeof(fext_t));
+    // }
 
     // initialize the first row to energies
     for (i = 0; i < w; ++i)
     {
-        m[0][i].val = e[idx(0, i, w)];
+        (*m)[0][i].val = e[idx(0, i, w)];
     }
 
     // iterate over energies and calculate minimum
@@ -32,19 +33,19 @@ void find_vseam(int **seam, int w, int h, float *e)
     {
         for (j = 0; j < w; ++j)
         {
-            a = m[i - 1][j].val;
-            b = j - 1 >= 0 ? m[i - 1][j - 1].val : FLT_MAX;
-            c = j + 1 < w ? m[i - 1][j + 1].val : FLT_MAX;
-            m[i][j].val = e[idx(i, j, w)] + calc_min(a, b, c, j, &m[i][j].from);
+            a = (*m)[i - 1][j].val;
+            b = j - 1 >= 0 ? (*m)[i - 1][j - 1].val : FLT_MAX;
+            c = j + 1 < w ? (*m)[i - 1][j + 1].val : FLT_MAX;
+            (*m)[i][j].val = e[idx(i, j, w)] + calc_min(a, b, c, j, &(*m)[i][j].from);
         }
     }
 
     // find the minimum number at the end row
     for (k = 0, i = 0; i < w; ++i)
     {
-        if (min > m[h - 1][i].val)
+        if (min > (*m)[h - 1][i].val)
         {
-            min = m[h - 1][i].val;
+            min = (*m)[h - 1][i].val;
             k = i;
         }
     }
@@ -54,31 +55,31 @@ void find_vseam(int **seam, int w, int h, float *e)
     for (i = h - 1; i >= 0; --i)
     {
         (*seam)[i] = k;
-        k = m[i][k].from;
+        k = (*m)[i][k].from;
     }
     // free resources
-    for (int j = 0; j < h; ++j)
-    {
-        free(m[j]);
-    }
-    free(m);
+    // for (int j = 0; j < h; ++j)
+    // {
+    //     free(m[j]);
+    // }
+    // free(m);
 }
 
-void find_hseam(int **seam, int w, int h, float *e)
+void find_hseam(int **seam, int w, int h, float *e, fext_t ***m)
 {
     int i, j, k;
     float min = FLT_MAX;
-    fext_t **m = malloc(h * sizeof(*m));
+    // *m = realloc(*m, h * sizeof(fext_t *));
 
-    for (i = 0; i < h; ++i)
-    {
-        m[i] = malloc(w * sizeof(**m));
-    }
+    // for (i = 0; i < h; ++i)
+    // {
+    //     (*m)[i] = realloc((*m)[i], w * sizeof(fext_t));
+    // }
 
     // initialize the first column to energies
     for (i = 0; i < h; ++i)
     {
-        m[i][0].val = e[idx(i, 0, w)];
+        (*m)[i][0].val = e[idx(i, 0, w)];
     }
 
     float a, b, c;
@@ -87,19 +88,19 @@ void find_hseam(int **seam, int w, int h, float *e)
     {
         for (i = 0; i < h; ++i)
         {
-            a = m[i][j - 1].val;
-            b = i - 1 >= 0 ? m[i - 1][j - 1].val : FLT_MAX;
-            c = i + 1 < h ? m[i + 1][j - 1].val : FLT_MAX;
-            m[i][j].val = e[idx(i, j, w)] + calc_min(a, b, c, i, &m[i][j].from);
+            a = (*m)[i][j - 1].val;
+            b = i - 1 >= 0 ? (*m)[i - 1][j - 1].val : FLT_MAX;
+            c = i + 1 < h ? (*m)[i + 1][j - 1].val : FLT_MAX;
+            (*m)[i][j].val = e[idx(i, j, w)] + calc_min(a, b, c, i, &(*m)[i][j].from);
         }
     }
 
     // find the minimum number at the end column
     for (k = 0, i = 0; i < h; ++i)
     {
-        if (min > m[i][w - 1].val)
+        if (min > (*m)[i][w - 1].val)
         {
-            min = m[i][w - 1].val;
+            min = (*m)[i][w - 1].val;
             k = i;
         }
     }
@@ -108,15 +109,15 @@ void find_hseam(int **seam, int w, int h, float *e)
     for (i = w - 1; i >= 0; --i)
     {
         (*seam)[i] = k;
-        k = m[k][i].from;
+        k = (*m)[k][i].from;
     }
 
     // free resources
-    for (int j = 0; j < h; ++j)
-    {
-        free(m[j]);
-    }
-    free(m);
+    // for (int j = 0; j < h; ++j)
+    // {
+    //     free(m[j]);
+    // }
+    // free(m);
 }
 
 void draw_vseam(pixel3_t *img, int *vseam, int w, int h, ge_GIF *gif)

@@ -77,8 +77,13 @@ int main(int argc, char const *argv[])
   {
     mkdir("output/", 0700);
   }
-
+  int i = 0, j = 0;
   pixel3_t *energy_img = NULL;
+  fext_t **min_table = malloc(h * sizeof(fext_t *));
+  for (i = 0; i < h; ++i)
+  {
+    min_table[i] = malloc(w * sizeof(fext_t));
+  }
   float *e = NULL;                  // energy table
   int *vseam = NULL, *hseam = NULL; // vertical and horizontal seams
 
@@ -104,23 +109,23 @@ int main(int argc, char const *argv[])
                                         (uint8_t *)pallet, 8, /* palette depth == log2(# of colors) */
                                         1                     /* infinite loop */
                              );
-  int i = 0, j = 0;
   printf("calculation in progress...");
   fflush(stdout);
+  i = 0;
+  j = 0;
   while (i < target_height || j < target_width)
   {
     printf("i:%d , j: %d\n", i, j);
     calc_energy3(img, w - j, h - i, &energy_img, &e);
     if (j < target_width)
     {
-      find_vseam(&vseam, w - j, h - i, e);
+      find_vseam(&vseam, w - j, h - i, e, &min_table);
       draw_vseam(energy_img, vseam, w - j, h - i, i < target_height ? NULL : gif);
-      // ge_add_frame(vertical_gif, 10);
       remove_vseam(&img, vseam, w - (j + 1), h - i);
     }
     if (i < target_height)
     {
-      find_hseam(&hseam, w - j, h - i, e);
+      find_hseam(&hseam, w - j, h - i, e, &min_table);
       draw_hseam(energy_img, hseam, w - j, h - i, gif);
       remove_hseam(&img, hseam,
                    j < target_width ? w - (j + 1) : w - target_width,
@@ -147,6 +152,11 @@ int main(int argc, char const *argv[])
                  (w - target_width) * CHANNEL);
 
   // free resources
+  for (int j = 0; j < h - target_height; ++j)
+  {
+    free(min_table[j]);
+  }
+  free(min_table);
   free(img);
   free(e);
   free(energy_img);

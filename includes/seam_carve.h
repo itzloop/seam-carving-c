@@ -42,10 +42,10 @@ void calc_energy3(pixel3_t *img, int w, int h, pixel3_t **energy_img, float **e)
 float calc_min(float a, float b, float c, int j, int *index);
 
 // finds a vertical seam from table of energies and stores it in seam
-void find_vseam(int **seam, int w, int h, float *e);
+void find_vseam(int **seam, int w, int h, float *e, fext_t ***m);
 
 // finds a horizontal seam from table of energies and stores it in seam
-void find_hseam(int **seam, int w, int h, float *e);
+void find_hseam(int **seam, int w, int h, float *e, fext_t ***m);
 
 // draws a vertical seam on the energy image and also updates the gif
 void draw_vseam(pixel3_t *img, int *vseam, int w, int h, ge_GIF *gif);
