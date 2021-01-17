@@ -57,12 +57,6 @@ void find_vseam(int **seam, int w, int h, float *e, fext_t ***m)
         (*seam)[i] = k;
         k = (*m)[i][k].from;
     }
-    // free resources
-    // for (int j = 0; j < h; ++j)
-    // {
-    //     free(m[j]);
-    // }
-    // free(m);
 }
 
 void find_hseam(int **seam, int w, int h, float *e, fext_t ***m)
@@ -246,6 +240,114 @@ void calc_energy3(pixel3_t *img, int w, int h, pixel3_t **energy_img, float **e)
             (*energy_img)[idx(i, j, w)].g = ((*e)[idx(i, j, w)] / MAX_ENERGY) * 255;
             (*energy_img)[idx(i, j, w)].b = ((*e)[idx(i, j, w)] / MAX_ENERGY) * 255;
         }
+    }
+}
+
+float color_diff(pixel3_t p0, pixel3_t p1)
+{
+    return pow(abs(p0.r - p1.r), 2) + pow(abs(p0.g - p1.g), 2) + pow(abs(p0.b - p1.b), 2);
+}
+
+void calc_energy_forward(pixel3_t *img, int w, int h, pixel3_t **energy_img, cost_t **e)
+{
+    *energy_img = *energy_img == NULL ? malloc(w * h * sizeof(*energy_img)) : realloc(*energy_img, w * h * sizeof(*energy_img));
+
+    *e = *e == NULL ? malloc(w * h * sizeof(cost_t)) : realloc(*e, w * h * sizeof(cost_t));
+
+    pixel3_t black = {0, 0, 0};
+
+    // cost of first row
+    for (int j = 0; j < w; j++)
+    {
+        (*e)[idx(0, j, w)].l = 0;
+        (*e)[idx(0, j, w)].r = 0;
+        (*e)[idx(0, j, w)].u =
+            color_diff(j - 1 >= 0 ? img[idx(j - 1, 0, w)] : black,
+                       j + 1 < w ? img[idx(j + 1, 0, w)] : black);
+    }
+
+    // cost of left and right col
+    for (int i = 0; i < w; i++)
+    {
+        // left col
+        (*e)[idx(i, 0, w)].l =
+            color_diff(img[idx(i, 0, w)], img[idx(i, 1, w)]) +
+            color_diff(img[idx(i - 1, 0, w)], img[idx(i, 1, w)]);
+        (*e)[idx(i, 0, w)].r =
+            color_diff(img[idx(i, 0, w)], img[idx(i, 1, w)]) +
+            color_diff(img[idx(i - 1, 0, w)], img[idx(i, 1, w)]);
+        (*e)[idx(i, 0, w)].u =
+            color_diff(img[idx(i, 0, w)], img[idx(i, 1, w)]);
+        // right col
+        (*e)[idx(i, w - 1, w)].l =
+            color_diff(img[idx(i, w - 2, w)], img[idx(i, w - 1, w)]) +
+            color_diff(img[idx(i - 1, w - 2, w)], img[idx(i, w - 1, w)]);
+        (*e)[idx(i, w - 1, w)].r =
+            color_diff(img[idx(i, w - 2, w)], img[idx(i, w - 1, w)]) +
+            color_diff(img[idx(i - 1, w - 2, w)], img[idx(i, w - 1, w)]);
+        (*e)[idx(i, w - 1, w)].u =
+            color_diff(img[idx(i, w - 2, w)], img[idx(i, w - 1, w)]);
+    }
+
+    for (int i = 1; i < h; i++)
+    {
+        for (int j = 1; j < w - 1; j++)
+        {
+            (*e)[idx(i, j, w)].l =
+                color_diff(img[idx(i, j - 1, w)], img[idx(i, j + 1, w)]) +
+                color_diff(img[idx(i - 1, j, w)], img[idx(i, j - 1, w)]);
+            (*e)[idx(i, j, w)].r =
+                color_diff(img[idx(i, j - 1, w)], img[idx(i, j + 1, w)]) +
+                color_diff(img[idx(i - 1, j, w)], img[idx(i, j + 1, w)]);
+            (*e)[idx(i, j, w)].u = color_diff(img[idx(i - 1, j, w)], img[idx(i + 1, j, w)]);
+        }
+    }
+}
+
+void find_vseam_forward(int **seam, int w, int h, cost_t *e, fext_t ***m)
+{
+    int i, j, k;
+    float min = FLT_MAX, a, b, c;
+    // *m = realloc(*m, h * sizeof(fext_t *));
+    // for (i = 0; i < h; ++i)
+    // {
+    //     (*m)[i] = realloc((*m)[i], w * sizeof(fext_t));
+    // }
+
+    // initialize the first row to energies
+    for (i = 0; i < w; ++i)
+    {
+        (*m)[0][i].val = e[idx(0, i, w)].u;
+    }
+
+    // iterate over energies and calculate minimum
+    for (i = 1; i < h; ++i)
+    {
+        for (j = 0; j < w; ++j)
+        {
+            a = (*m)[i - 1][j].val + e[idx(i, j, w)].u;
+            b = j - 1 >= 0 ? (*m)[i - 1][j - 1].val + e[idx(i, j, w)].l : FLT_MAX;
+            c = j + 1 < w ? (*m)[i - 1][j + 1].val + e[idx(i, j, w)].r : FLT_MAX;
+            (*m)[i][j].val = calc_min(a, b, c, j, &(*m)[i][j].from);
+        }
+    }
+
+    // find the minimum number at the end row
+    for (k = 0, i = 0; i < w; ++i)
+    {
+        if (min > (*m)[h - 1][i].val)
+        {
+            min = (*m)[h - 1][i].val;
+            k = i;
+        }
+    }
+    // bactrace to top and create the seam
+    *seam = *seam == NULL ? malloc(h * sizeof(int)) : realloc(*seam, h * sizeof(int));
+
+    for (i = h - 1; i >= 0; --i)
+    {
+        (*seam)[i] = k;
+        k = (*m)[i][k].from;
     }
 }
 

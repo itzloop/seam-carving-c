@@ -14,6 +14,12 @@ typedef struct pixel3
     unsigned char g;
     unsigned char b;
 } pixel3_t;
+typedef struct cost
+{
+    float l;
+    float r;
+    float u;
+} cost_t;
 
 // this struct is used to store values of shortest path
 // every time we get the minimum of 3 elements and calulate
@@ -33,7 +39,8 @@ typedef struct fext
 // it also makes a another image from the enenrgy and returns it
 // as an out prameter energy_img
 void calc_energy3(pixel3_t *img, int w, int h, pixel3_t **energy_img, float **e);
-
+void calc_energy_forward(pixel3_t *img, int w, int h, pixel3_t **energy_img, cost_t **e);
+void find_vseam_forward(int **seam, int w, int h, cost_t *e, fext_t ***m);
 // calculates the min btween a,b and c and set the index based on
 // following rules:
 // if a is min j is the index
