@@ -33,7 +33,7 @@ char *create_str(const char *format, ...)
 
 int main(int argc, char const *argv[])
 {
-  if (argc != 5)
+  if (argc != 6)
   {
     printf("too few arguments!");
     return 1;
@@ -41,7 +41,8 @@ int main(int argc, char const *argv[])
   const char *filename = argv[1];
   int target_width = atoi(argv[2]);
   int target_height = atoi(argv[3]);
-  int save_gif = atoi(argv[4]);
+  MODE_T mode = atoi(argv[4]) == 0 ? BACKWARD : FORWARD;
+  bool save_gif = atoi(argv[5]) == 1;
 
   if (target_height < 0 || target_width < 0)
   {
@@ -77,67 +78,39 @@ int main(int argc, char const *argv[])
   {
     mkdir("output/", 0700);
   }
-  int i = 0, j = 0;
-  pixel3_t *energy_img = NULL;
-  fext_t **min_table = malloc(h * sizeof(fext_t *));
-  for (i = 0; i < h; ++i)
-  {
-    min_table[i] = malloc(w * sizeof(fext_t));
-  }
-  float *e = NULL;                  // energy table
-  cost_t *c = NULL;                 // energy table
-  int *vseam = NULL, *hseam = NULL; // vertical and horizontal seams
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
-  // red is 255
-  // this is the collors used in the gif
-  pixel3_t pallet[256];
-  for (int i = 0; i < 255; i++)
-  {
-    pallet[i].r = i;
-    pallet[i].g = i;
-    pallet[i].b = i;
-  }
-  pallet[255].r = 255;
-  pallet[255].g = 0;
-  pallet[255].b = 0;
-
-  ge_GIF *gif =
-      save_gif == 0 ? NULL : ge_new_gif("output/result.gif",  /* file name */
-                                        w, h,                 /* canvas size */
-                                        (uint8_t *)pallet, 8, /* palette depth == log2(# of colors) */
-                                        1                     /* infinite loop */
-                             );
   printf("calculation in progress...");
   fflush(stdout);
-  i = 0;
-  j = 0;
-  while (i < target_height || j < target_width)
+  seam_carve_t *sc = seam_carve_init(img, w, h, target_width, target_height, mode, save_gif);
+  while (has_next(sc))
   {
-    // printf("i:%d , j: %d\n", i, j);
-    calc_energy_forward(img, w - j, h - i, &c);
-    if (j < target_width)
+    printf("i:%d , j: %d\n", sc->current_h, sc->current_w);
+    calculate_energy(sc);
+    if (has_vseam(sc))
     {
-      find_vseam_forward(&vseam, w - j, h - i, c, &min_table, &energy_img);
-      draw_vseam(energy_img, vseam, w - j, h - i, i < target_height ? NULL : gif);
-      remove_vseam(&img, vseam, w - (j + 1), h - i);
+      find_vseam(sc);
+      draw_vseam(sc);
+      remove_vseam(sc);
+      // find_vseam_forward(&vseam, w - j, h - i, c, &min_table, &energy_img);
+      // draw_vseam(energy_img, vseam, w - j, h - i, i < target_height ? NULL : gif);
+      // remove_vseam(&img, vseam, w - (j + 1), h - i);
     }
-    if (i < target_height)
+    if (has_hseam(sc))
     {
-      find_hseam(&hseam, w - j, h - i, e, &min_table);
-      draw_hseam(energy_img, hseam, w - j, h - i, gif);
-      remove_hseam(&img, hseam,
-                   j < target_width ? w - (j + 1) : w - target_width,
-                   h - (i + 1));
+      find_hseam(sc);
+      draw_hseam(sc);
+      remove_hseam(sc);
+      // find_hseam(&hseam, w - j, h - i, e, &min_table);
+      // draw_hseam(energy_img, hseam, w - j, h - i, gif);
+      // remove_hseam(&img, hseam,
+      //              j < target_width ? w - (j + 1) : w - target_width,
+      //              h - (i + 1));
     }
 
-    if (gif)
-      ge_add_frame(gif, 7);
-
-    i += 1 * (i < target_height);
-    j += 1 * (j < target_width);
+    next_seam(sc);
   }
 
   clock_gettime(CLOCK_REALTIME, &end);
@@ -149,21 +122,10 @@ int main(int argc, char const *argv[])
                  w - target_width,
                  h - target_height,
                  CHANNEL,
-                 img,
+                 sc->img,
                  (w - target_width) * CHANNEL);
 
   // free resources
-  for (int j = 0; j < h - target_height; ++j)
-  {
-    free(min_table[j]);
-  }
-  free(min_table);
-  free(img);
-  free(e);
-  free(energy_img);
-  free(vseam);
-  free(hseam);
-  if (gif)
-    ge_close_gif(gif);
+  seam_carve_free(sc);
   return 0;
 }
