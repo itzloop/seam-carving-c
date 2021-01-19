@@ -85,6 +85,7 @@ int main(int argc, char const *argv[])
     min_table[i] = malloc(w * sizeof(fext_t));
   }
   float *e = NULL;                  // energy table
+  cost_t *c = NULL;                 // energy table
   int *vseam = NULL, *hseam = NULL; // vertical and horizontal seams
 
   struct timespec start, end;
@@ -115,11 +116,11 @@ int main(int argc, char const *argv[])
   j = 0;
   while (i < target_height || j < target_width)
   {
-    printf("i:%d , j: %d\n", i, j);
-    calc_energy3(img, w - j, h - i, &energy_img, &e);
+    // printf("i:%d , j: %d\n", i, j);
+    calc_energy_forward(img, w - j, h - i, &c);
     if (j < target_width)
     {
-      find_vseam(&vseam, w - j, h - i, e, &min_table);
+      find_vseam_forward(&vseam, w - j, h - i, c, &min_table, &energy_img);
       draw_vseam(energy_img, vseam, w - j, h - i, i < target_height ? NULL : gif);
       remove_vseam(&img, vseam, w - (j + 1), h - i);
     }
