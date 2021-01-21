@@ -3,7 +3,7 @@
 // this file has all the information about what the program is doing
 // the implementations are in seam_carve.c
 #define MAX_ENERGY_BACKWARD 624.61988441 // this value is calucated by maximizing the energy formula
-#define CHANNEL 3                        // Channel corresponds to RGB
+#define CHANNEL 3												 // Channel corresponds to RGB
 #define MAX_ENERGY_FORWARD 195075
 // forward declation
 typedef struct ge_GIF ge_GIF;
@@ -11,9 +11,9 @@ typedef struct ge_GIF ge_GIF;
 // this struct contains the RGB values for one pixel
 typedef struct pixel3
 {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
 } pixel3_t;
 
 /*
@@ -69,12 +69,12 @@ the rest is the same as backward energy
 
 typedef struct cost
 {
-    float vl; // vertical left
-    float vr; // vertical right
-    float vu; // vertical up
-    float hl; // horizontal left
-    float hu; // horizontal up
-    float hd; // horizontal down
+	float vl; // vertical left
+	float vr; // vertical right
+	float vu; // vertical up
+	float hl; // horizontal left
+	float hu; // horizontal up
+	float hd; // horizontal down
 } cost_t;
 
 /* 
@@ -88,8 +88,8 @@ The chosen element's index is stored in variable `from` of fext.
 */
 typedef struct fext
 {
-    float val;
-    int from;
+	float val;
+	int from;
 } fext_t;
 
 typedef struct seam_carve seam_carve_t;
@@ -97,31 +97,31 @@ typedef void (*energy_function)(seam_carve_t *sc);
 typedef void (*seam_finder)(seam_carve_t *sc);
 typedef enum MODE
 {
-    FORWARD,
-    BACKWARD
+	FORWARD,
+	BACKWARD
 } MODE_T;
 
 typedef struct seam_carve
 {
-    int w;
-    int h;
-    int target_w;
-    int target_h;
-    int current_w;
-    int current_h;
-    int max_energy_map;
-    int *vseam;                 // vertical seam
-    int *hseam;                 // horizontal seam
-    float *energy_map_backward; // the energy map for when we're using the backward energy
-    pixel3_t *img;              // the image that we're resizing
-    pixel3_t *energy_map_image; // the energy map image of img
-    cost_t *energy_map_forward; // the energy map for when we're using the forward energy
-    ge_GIF *gif;                // gif each energy_map_image
-    fext_t **min;               // min table;
-    energy_function ef;         // energy function
-    seam_finder vsf;            // vertical seam finder
-    seam_finder hsf;            // horizontal seam finder
-    MODE_T mode;                // either Forward or Backward
+	int w;
+	int h;
+	int target_w;
+	int target_h;
+	int current_w;
+	int current_h;
+	int max_energy_map;
+	int *vseam;									// vertical seam
+	int *hseam;									// horizontal seam
+	float *energy_map_backward; // the energy map for when we're using the backward energy
+	pixel3_t *img;							// the image that we're resizing
+	pixel3_t *energy_map_image; // the energy map image of img
+	cost_t *energy_map_forward; // the energy map for when we're using the forward energy
+	ge_GIF *gif;								// gif each energy_map_image
+	fext_t **min;								// min table;
+	energy_function ef;					// energy function
+	seam_finder vsf;						// vertical seam finder
+	seam_finder hsf;						// horizontal seam finder
+	MODE_T mode;								// either Forward or Backward
 } seam_carve_t;
 
 // calculates energy of given image and returns an array of floats
@@ -158,14 +158,12 @@ void remove_vseam(seam_carve_t *sc);
 void remove_hseam(seam_carve_t *sc);
 
 // converts a 2d index to 1d equivalant
-size_t idx(size_t row, size_t col, int w);
+// size_t idx(size_t row, size_t col, int w);
 // get the next vertical and horizontal seam
 seam_carve_t *seam_carve_init(pixel3_t *img, int w, int h, int target_w, int target_h, MODE_T mode, bool gif);
 void seam_carve_free(seam_carve_t *sc);
 void calculate_energy(seam_carve_t *sc);
 void next_seam(seam_carve_t *sc);
 bool has_next(seam_carve_t *sc);
-// void draw_seam(seam_carve_t *sc);
-// void remove_seam(seam_carve_t *sc);
 bool has_vseam(seam_carve_t *sc);
 bool has_hseam(seam_carve_t *sc);

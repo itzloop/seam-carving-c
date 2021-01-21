@@ -94,22 +94,13 @@ int main(int argc, char const *argv[])
       find_vseam(sc);
       draw_vseam(sc);
       remove_vseam(sc);
-      // find_vseam_forward(&vseam, w - j, h - i, c, &min_table, &energy_img);
-      // draw_vseam(energy_img, vseam, w - j, h - i, i < target_height ? NULL : gif);
-      // remove_vseam(&img, vseam, w - (j + 1), h - i);
     }
     if (has_hseam(sc))
     {
       find_hseam(sc);
       draw_hseam(sc);
       remove_hseam(sc);
-      // find_hseam(&hseam, w - j, h - i, e, &min_table);
-      // draw_hseam(energy_img, hseam, w - j, h - i, gif);
-      // remove_hseam(&img, hseam,
-      //              j < target_width ? w - (j + 1) : w - target_width,
-      //              h - (i + 1));
     }
-
     next_seam(sc);
   }
 
@@ -118,12 +109,11 @@ int main(int argc, char const *argv[])
          end.tv_sec - start.tv_sec +
              (double)(end.tv_nsec - start.tv_nsec) / NANO);
 
-  stbi_write_png("output/result.png",
+  stbi_write_jpg("output/result.png",
                  w - target_width,
                  h - target_height,
                  CHANNEL,
-                 sc->img,
-                 (w - target_width) * CHANNEL);
+                 sc->img, 100);
 
   // free resources
   seam_carve_free(sc);
