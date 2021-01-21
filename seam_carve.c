@@ -7,9 +7,19 @@
 #include <stdbool.h>
 
 // helper functions
+
+// converts a 2d index to 1d equivalant
+// size_t idx(size_t row, size_t col, int w);
+// get the next vertical and horizontal seam
 size_t idx(size_t row, size_t col, int w);
 float calc_max(float a, float b, float c);
 float calc_min_index(float a, float b, float c, int j);
+
+// calculates the min btween a,b and c and set the index based on
+// following rules:
+// if a is min j is the index
+// if b is min j - 1 is the index
+// if c is min j + 1 is the index
 float calc_min(float a, float b, float c, int j, int *index);
 float color_diff(pixel3_t p0, pixel3_t p1);
 
@@ -94,7 +104,7 @@ void remove_vseam(seam_carve_t *sc)
     }
   }
 
-  sc->img = realloc(sc->img, w * h * sizeof(pixel3_t));
+  // sc->img = realloc(sc->img, w * h * sizeof(pixel3_t));
 }
 
 void remove_hseam(seam_carve_t *sc)
@@ -112,13 +122,14 @@ void remove_hseam(seam_carve_t *sc)
     {
       if (i == sc->hseam[j])
         i++;
-
+      // if (sc->current_w >= 47)
+      // printf("j: %d i: %d\n", j, i);
       img[idx(l, j, w)].r = img[idx(i, j, w)].r;
       img[idx(l, j, w)].g = img[idx(i, j, w)].g;
       img[idx(l, j, w)].b = img[idx(i, j, w)].b;
     }
   }
-  sc->img = realloc(sc->img, w * h * sizeof(pixel3_t));
+  // sc->img = realloc(sc->img, w * h * sizeof(pixel3_t));
 }
 
 void calc_energy_backward(seam_carve_t *sc)
@@ -126,8 +137,8 @@ void calc_energy_backward(seam_carve_t *sc)
   int rx, ry, gx, gy, bx, by;
   int w = w = sc->w - sc->current_w, h = sc->h - sc->current_h;
   float dx, dy;
-  sc->energy_map_image = realloc(sc->energy_map_image, w * h * sizeof(*sc->energy_map_image));
-  sc->energy_map_backward = realloc(sc->energy_map_backward, w * h * sizeof(sc->energy_map_backward));
+  // sc->energy_map_image = realloc(sc->energy_map_image, w * h * sizeof(*sc->energy_map_image));
+  // sc->energy_map_backward = realloc(sc->energy_map_backward, w * h * sizeof(sc->energy_map_backward));
   pixel3_t *img = sc->img;
 
   for (int i = 0; i < h; i++)
@@ -158,8 +169,8 @@ void calc_energy_forward(seam_carve_t *sc)
   int w = sc->w - sc->current_w, h = sc->h - sc->current_h;
   pixel3_t black = {0, 0, 0};
   pixel3_t *img = sc->img;
-  sc->energy_map_image = realloc(sc->energy_map_image, w * h * sizeof(*sc->energy_map_image));
-  sc->energy_map_forward = realloc(sc->energy_map_forward, w * h * sizeof(cost_t));
+  // sc->energy_map_image = realloc(sc->energy_map_image, w * h * sizeof(*sc->energy_map_image));
+  // sc->energy_map_forward = realloc(sc->energy_map_forward, w * h * sizeof(cost_t));
   cost_t *energies = sc->energy_map_forward;
   int index[3];
 
@@ -269,7 +280,6 @@ skip_horizontal:
   return;
 }
 
-//int **seam, int w, int h, float *e, fext_t ***m
 void find_vseam_backward(seam_carve_t *sc)
 {
   int i, j, k, w = sc->w - sc->current_w, h = sc->h - sc->current_h;
@@ -304,7 +314,7 @@ void find_vseam_backward(seam_carve_t *sc)
     }
   }
   // bactrace to top and create the seam
-  sc->vseam = realloc(sc->vseam, h * sizeof(*sc->vseam));
+  // sc->vseam = realloc(sc->vseam, h * sizeof(*sc->vseam));
 
   for (i = h - 1; i >= 0; --i)
   {
@@ -348,7 +358,7 @@ void find_hseam_backward(seam_carve_t *sc)
     }
   }
   // bactrace to top and create the seam
-  sc->hseam = realloc(sc->hseam, w * sizeof(*sc->hseam));
+  // sc->hseam = realloc(sc->hseam, w * sizeof(*sc->hseam));
   for (i = w - 1; i >= 0; --i)
   {
     sc->hseam[i] = k;
@@ -373,9 +383,9 @@ void find_vseam_forward(seam_carve_t *sc)
     m[0][i].val = e[index].vu;
     avg += e[index].vu;
     selected_pixel = e[index].vu;
-    energy_img[index].r = (selected_pixel / sc->max_energy_map) * 255;
-    energy_img[index].g = (selected_pixel / sc->max_energy_map) * 255;
-    energy_img[index].b = (selected_pixel / sc->max_energy_map) * 255;
+    energy_img[index].r = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
+    energy_img[index].g = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
+    energy_img[index].b = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
   }
 
   // iterate over energies and calculate minimum
@@ -393,9 +403,9 @@ void find_vseam_forward(seam_carve_t *sc)
                        (j + 1 == k) * e[index].vr +
                        (j - 1 == k) * e[index].vl;
       avg += selected_pixel;
-      energy_img[index].r = (selected_pixel / sc->max_energy_map) * 255;
-      energy_img[index].g = (selected_pixel / sc->max_energy_map) * 255;
-      energy_img[index].b = (selected_pixel / sc->max_energy_map) * 255;
+      energy_img[index].r = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
+      energy_img[index].g = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
+      energy_img[index].b = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
     }
   }
   // find the minimum number at the end row
@@ -408,7 +418,7 @@ void find_vseam_forward(seam_carve_t *sc)
     }
   }
   // bactrace to top and create the seam
-  sc->vseam = realloc(sc->vseam, h * sizeof(*sc->vseam));
+  // sc->vseam = realloc(sc->vseam, h * sizeof(*sc->vseam));
 
   for (i = h - 1; i >= 0; --i)
   {
@@ -431,9 +441,9 @@ void find_hseam_forward(seam_carve_t *sc)
     if (has_vseam(sc))
       continue;
     selected_pixel = e[idx(i, 0, w)].hl;
-    energy_img[idx(i, 0, w)].r = (selected_pixel / sc->max_energy_map) * 255;
-    energy_img[idx(i, 0, w)].g = (selected_pixel / sc->max_energy_map) * 255;
-    energy_img[idx(i, 0, w)].b = (selected_pixel / sc->max_energy_map) * 255;
+    energy_img[idx(i, 0, w)].r = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
+    energy_img[idx(i, 0, w)].g = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
+    energy_img[idx(i, 0, w)].b = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
   }
 
   float a, b, c;
@@ -453,9 +463,9 @@ void find_hseam_forward(seam_carve_t *sc)
       selected_pixel = (i == k) * e[idx(i, j, w)].hl +
                        (i + 1 == k) * e[idx(i, j, w)].hd +
                        (i - 1 == k) * e[idx(i, j, w)].hu;
-      energy_img[idx(i, j, w)].r = (selected_pixel / sc->max_energy_map) * 255;
-      energy_img[idx(i, j, w)].g = (selected_pixel / sc->max_energy_map) * 255;
-      energy_img[idx(i, j, w)].b = (selected_pixel / sc->max_energy_map) * 255;
+      energy_img[idx(i, j, w)].r = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
+      energy_img[idx(i, j, w)].g = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
+      energy_img[idx(i, j, w)].b = (selected_pixel / MAX_ENERGY_FORWARD) * 255;
     }
   }
 
@@ -469,7 +479,7 @@ void find_hseam_forward(seam_carve_t *sc)
     }
   }
   // bactrace to top and create the seam
-  sc->hseam = realloc(sc->hseam, w * sizeof(*sc->hseam));
+  // sc->hseam = realloc(sc->hseam, w * sizeof(*sc->hseam));
   for (i = w - 1; i >= 0; --i)
   {
     sc->hseam[i] = k;

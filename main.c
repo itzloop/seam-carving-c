@@ -87,7 +87,7 @@ int main(int argc, char const *argv[])
   seam_carve_t *sc = seam_carve_init(img, w, h, target_width, target_height, mode, save_gif);
   while (has_next(sc))
   {
-    printf("i:%d , j: %d\n", sc->current_h, sc->current_w);
+    printf("w:%d , h: %d\n", sc->w - sc->current_w, sc->h - sc->current_h);
     calculate_energy(sc);
     if (has_vseam(sc))
     {
@@ -109,7 +109,7 @@ int main(int argc, char const *argv[])
          end.tv_sec - start.tv_sec +
              (double)(end.tv_nsec - start.tv_nsec) / NANO);
 
-  stbi_write_jpg("output/result.png",
+  stbi_write_jpg("output/result.jpg",
                  w - target_width,
                  h - target_height,
                  CHANNEL,
