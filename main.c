@@ -33,7 +33,7 @@ char *create_str(const char *format, ...)
 
 int main(int argc, char const *argv[])
 {
-  if (argc != 5)
+  if (argc != 6)
   {
     printf("too few arguments!");
     return 1;
@@ -41,7 +41,8 @@ int main(int argc, char const *argv[])
   const char *filename = argv[1];
   int target_width = atoi(argv[2]);
   int target_height = atoi(argv[3]);
-  int save_gif = atoi(argv[4]);
+  MODE_T mode = atoi(argv[4]) == 0 ? BACKWARD : FORWARD;
+  bool save_gif = atoi(argv[5]) == 1;
 
   if (target_height < 0 || target_width < 0)
   {
@@ -78,60 +79,29 @@ int main(int argc, char const *argv[])
     mkdir("output/", 0700);
   }
 
-  pixel3_t *energy_img = NULL;
-  float *e = NULL;                  // energy table
-  int *vseam = NULL, *hseam = NULL; // vertical and horizontal seams
-
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
-  // red is 255
-  // this is the collors used in the gif
-  pixel3_t pallet[256];
-  for (int i = 0; i < 255; i++)
-  {
-    pallet[i].r = i;
-    pallet[i].g = i;
-    pallet[i].b = i;
-  }
-  pallet[255].r = 255;
-  pallet[255].g = 0;
-  pallet[255].b = 0;
-
-  ge_GIF *gif =
-      save_gif == 0 ? NULL : ge_new_gif("output/result.gif",  /* file name */
-                                        w, h,                 /* canvas size */
-                                        (uint8_t *)pallet, 8, /* palette depth == log2(# of colors) */
-                                        1                     /* infinite loop */
-                             );
-  int i = 0, j = 0;
   printf("calculation in progress...");
   fflush(stdout);
-  while (i < target_height || j < target_width)
+  seam_carve_t *sc = seam_carve_init(img, w, h, target_width, target_height, mode, save_gif);
+  while (has_next(sc))
   {
-    printf("i:%d , j: %d\n", i, j);
-    calc_energy3(img, w - j, h - i, &energy_img, &e);
-    if (j < target_width)
+    printf("w:%d , h: %d\n", sc->w - sc->current_w, sc->h - sc->current_h);
+    calculate_energy(sc);
+    if (has_vseam(sc))
     {
-      find_vseam(&vseam, w - j, h - i, e);
-      draw_vseam(energy_img, vseam, w - j, h - i, i < target_height ? NULL : gif);
-      // ge_add_frame(vertical_gif, 10);
-      remove_vseam(&img, vseam, w - (j + 1), h - i);
+      find_vseam(sc);
+      draw_vseam(sc);
+      remove_vseam(sc);
     }
-    if (i < target_height)
+    if (has_hseam(sc))
     {
-      find_hseam(&hseam, w - j, h - i, e);
-      draw_hseam(energy_img, hseam, w - j, h - i, gif);
-      remove_hseam(&img, hseam,
-                   j < target_width ? w - (j + 1) : w - target_width,
-                   h - (i + 1));
+      find_hseam(sc);
+      draw_hseam(sc);
+      remove_hseam(sc);
     }
-
-    if (gif)
-      ge_add_frame(gif, 7);
-
-    i += 1 * (i < target_height);
-    j += 1 * (j < target_width);
+    next_seam(sc);
   }
 
   clock_gettime(CLOCK_REALTIME, &end);
@@ -139,20 +109,13 @@ int main(int argc, char const *argv[])
          end.tv_sec - start.tv_sec +
              (double)(end.tv_nsec - start.tv_nsec) / NANO);
 
-  stbi_write_png("output/result.png",
+  stbi_write_jpg("output/result.jpg",
                  w - target_width,
                  h - target_height,
                  CHANNEL,
-                 img,
-                 (w - target_width) * CHANNEL);
+                 sc->img, 100);
 
   // free resources
-  free(img);
-  free(e);
-  free(energy_img);
-  free(vseam);
-  free(hseam);
-  if (gif)
-    ge_close_gif(gif);
+  seam_carve_free(sc);
   return 0;
 }

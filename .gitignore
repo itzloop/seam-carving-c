@@ -3,4 +3,4 @@ output
 *.log
 .vscode
 *.zip
-*.html
+Doc.html
