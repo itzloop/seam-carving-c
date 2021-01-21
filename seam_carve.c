@@ -6,19 +6,9 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-bool has_next(seam_carve_t *sc)
-{
-	return sc->current_w < sc->target_w || sc->current_h < sc->target_h;
-}
-bool has_vseam(seam_carve_t *sc)
-{
-	return sc->current_w < sc->target_w;
-}
-bool has_hseam(seam_carve_t *sc)
-{
-	return sc->current_h < sc->target_h;
-}
+#define IDX(i, j, w) i *w + j
 
+// helper functions
 float calc_max(float a, float b, float c)
 {
 	return a > b ? (a > c ? a : c) : (b > c ? b : c);
@@ -32,6 +22,11 @@ float calc_min(float a, float b, float c, int j, int *index)
 {
 	*index = a < b ? (a < c ? j : j + 1) : (b < c ? j - 1 : j + 1);
 	return a < b ? (a < c ? a : c) : (b < c ? b : c);
+}
+
+float color_diff(pixel3_t p0, pixel3_t p1)
+{
+	return pow(abs(p0.r - p1.r), 2) + pow(abs(p0.g - p1.g), 2) + pow(abs(p0.b - p1.b), 2);
 }
 
 //int **seam, int w, int h, float *e, fext_t ***m
@@ -260,11 +255,6 @@ void calc_energy_backward(seam_carve_t *sc)
 	}
 }
 
-float color_diff(pixel3_t p0, pixel3_t p1)
-{
-	return pow(abs(p0.r - p1.r), 2) + pow(abs(p0.g - p1.g), 2) + pow(abs(p0.b - p1.b), 2);
-}
-
 void calc_energy_forward(seam_carve_t *sc)
 {
 
@@ -274,6 +264,9 @@ void calc_energy_forward(seam_carve_t *sc)
 	sc->energy_map_forward = realloc(sc->energy_map_forward, w * h * sizeof(cost_t));
 	cost_t *energies = sc->energy_map_forward;
 	int index[3];
+
+	if (!has_vseam(sc))
+		goto skip_vertical;
 	// cost of first row
 	for (int j = 0; j < w; j++)
 	{
@@ -289,49 +282,95 @@ void calc_energy_forward(seam_carve_t *sc)
 	for (int i = 1; i < h; i++)
 	{
 		// left col
-		index[0] = idx(i, 0, w);
-		index[1] = idx(i, 1, w);
-		index[2] = idx(i - 1, 0, w);
-		energies[index[0]].vl =
-			color_diff(img[index[0]], img[index[1]]) +
-			color_diff(img[index[2]], img[index[1]]);
-		energies[index[0]].vr =
-			color_diff(img[index[0]], img[index[1]]) +
-			color_diff(img[index[2]], img[index[1]]);
-		energies[index[0]].vu =
-			color_diff(img[index[0]], img[index[1]]);
+		energies[idx(i, 0, w)].vl =
+			color_diff(img[idx(i, 0, w)], img[idx(i, 1, w)]) +
+			color_diff(img[idx(i - 1, 0, w)], img[idx(i, 1, w)]);
+		energies[idx(i, 0, w)].vr =
+			color_diff(img[idx(i, 0, w)], img[idx(i, 1, w)]) +
+			color_diff(img[idx(i - 1, 0, w)], img[idx(i, 1, w)]);
+		energies[idx(i, 0, w)].vu =
+			color_diff(img[idx(i, 0, w)], img[idx(i, 1, w)]);
 		// right col
-		index[0] = idx(i, w - 1, w);
-		index[1] = idx(i, w - 2, w);
-		index[2] = idx(i - 1, w - 2, w);
-		energies[index[0]].vl =
-			color_diff(img[index[1]], img[index[0]]) +
-			color_diff(img[index[2]], img[index[0]]);
-		energies[index[0]].vr =
-			color_diff(img[index[1]], img[index[0]]) +
-			color_diff(img[index[2]], img[index[0]]);
-		energies[index[0]].vu =
-			color_diff(img[index[1]], img[index[0]]);
+		energies[idx(i, w - 1, w)].vl =
+			color_diff(img[idx(i, w - 2, w)], img[idx(i, w - 1, w)]) +
+			color_diff(img[idx(i - 1, w - 2, w)], img[idx(i, w - 1, w)]);
+		energies[idx(i, w - 1, w)].vr =
+			color_diff(img[idx(i, w - 2, w)], img[idx(i, w - 1, w)]) +
+			color_diff(img[idx(i - 1, w - 2, w)], img[idx(i, w - 1, w)]);
+		energies[idx(i, w - 1, w)].vu =
+			color_diff(img[idx(i, w - 2, w)], img[idx(i, w - 1, w)]);
 	}
 
 	for (int i = 1; i < h; i++)
 	{
 		for (int j = 1; j < w - 1; j++)
 		{
-			index[0] = idx(i, j - 1, w);
-			index[1] = idx(i - 1, j, w);
-			index[2] = idx(i, j + 1, w);
 			energies[idx(i, j, w)].vl =
-				color_diff(img[index[0]], img[index[2]]) +
-				color_diff(img[index[1]], img[index[0]]);
+				color_diff(img[idx(i, j - 1, w)], img[idx(i, j + 1, w)]) +
+				color_diff(img[idx(i - 1, j, w)], img[idx(i, j - 1, w)]);
 			energies[idx(i, j, w)].vr =
-				color_diff(img[index[0]], img[index[2]]) +
-				color_diff(img[index[1]], img[index[2]]);
-			energies[idx(i, j, w)].vu = color_diff(img[index[0]], img[index[2]]);
+				color_diff(img[idx(i, j - 1, w)], img[idx(i, j + 1, w)]) +
+				color_diff(img[idx(i - 1, j, w)], img[idx(i, j + 1, w)]);
+			energies[idx(i, j, w)].vu = color_diff(img[idx(i, j - 1, w)], img[idx(i, j + 1, w)]);
 			int temp = calc_max(energies[idx(i, j, w)].vl, energies[idx(i, j, w)].vr, energies[idx(i, j, w)].vu);
 			sc->max_energy_map = sc->max_energy_map > temp ? sc->max_energy_map : temp;
 		}
 	}
+skip_vertical:
+	if (!has_hseam(sc))
+		goto skip_horizontal;
+
+	// cost of the horizontal left col
+	for (int i = 0; i < h; i++)
+	{
+		energies[idx(i, 0, w)].hu = 0;
+		energies[idx(i, 0, w)].hd = 0;
+		energies[idx(i, 0, w)].hl =
+			color_diff(img[idx(i - 1 >= 0 ? i - 1 : i, 0, w)],
+					   img[idx(i + 1 < h ? i + 1 : i, 0, w)]);
+	}
+	// cost of horizontal bottom and top row
+	for (int j = 1; j < w; j++)
+	{
+		// top row
+		energies[idx(0, j, w)].hd =
+			color_diff(img[idx(0, j - 1, w)], img[idx(1, j, w)]) +
+			color_diff(img[idx(1, j, w)], img[idx(0, j, w)]);
+		energies[idx(0, j, w)].hu =
+			color_diff(img[idx(0, j - 1, w)], img[idx(0, j, w)]) +
+			color_diff(img[idx(0, j, w)], img[idx(1, j, w)]);
+		energies[idx(0, j, w)].hl =
+			color_diff(img[idx(0, j, w)], img[idx(1, j, w)]);
+		// bottom row
+		printf("s:%d:%d:%d\t", j, w, h);
+		energies[idx(h - 1, j, w)].hd =
+			color_diff(img[idx(h - 2, j - 1, w)], img[idx(h - 1, j, w)]) +
+			color_diff(img[idx(h - 1, j, w)], img[idx(h - 2, j, w)]);
+		energies[idx(h - 1, j, w)].hu =
+			color_diff(img[idx(h - 2, j - 1, w)], img[idx(h - 2, j, w)]) +
+			color_diff(img[idx(h - 2, j, w)], img[idx(h - 1, j, w)]);
+		energies[idx(h - 1, j, w)].hl =
+			color_diff(img[idx(h - 2, j, w)], img[idx(h - 1, j, w)]);
+	}
+	printf("\n");
+
+	for (int j = 1; j < w; j++)
+	{
+		for (int i = 1; i < h - 1; i++)
+		{
+			energies[idx(i, j, w)].hd =
+				color_diff(img[idx(i, j - 1, w)], img[idx(i + 1, j, w)]) +
+				color_diff(img[idx(i - 1, j, w)], img[idx(i + 1, j, w)]);
+			energies[idx(i, j, w)].hu =
+				color_diff(img[idx(i, j - 1, w)], img[idx(i - 1, j, w)]) +
+				color_diff(img[idx(i - 1, j, w)], img[idx(i + 1, j, w)]);
+			energies[idx(i, j, w)].hl = color_diff(img[idx(i - 1, j, w)], img[idx(i + 1, j, w)]);
+			int temp = calc_max(energies[idx(i, j, w)].hl, energies[idx(i, j, w)].hd, energies[idx(i, j, w)].hu);
+			sc->max_energy_map = sc->max_energy_map > temp ? sc->max_energy_map : temp;
+		}
+	}
+skip_horizontal:
+	return;
 }
 
 void find_vseam_forward(seam_carve_t *sc)
@@ -397,7 +436,64 @@ void find_vseam_forward(seam_carve_t *sc)
 
 void find_hseam_forward(seam_carve_t *sc)
 {
-	exit(1);
+	int i, j, k, w = sc->w - sc->current_w, h = sc->h - sc->current_h;
+	float min = FLT_MAX, selected_pixel;
+	pixel3_t *energy_img = sc->energy_map_image;
+	fext_t **m = sc->min;
+	cost_t *e = sc->energy_map_forward;
+	// initialize the first column to energies
+	for (i = 0; i < h; ++i)
+	{
+		m[i][0].val = e[idx(i, 0, w)].hl;
+		selected_pixel = e[idx(i, 0, w)].hl;
+		energy_img[idx(i, 0, w)].r = (selected_pixel / sc->max_energy_map) * 255;
+		energy_img[idx(i, 0, w)].g = (selected_pixel / sc->max_energy_map) * 255;
+		energy_img[idx(i, 0, w)].b = (selected_pixel / sc->max_energy_map) * 255;
+		m[i][0].val = e[idx(i, 0, w)].hl;
+	}
+
+	float a, b, c;
+	// iterate over energies and calculate minimum
+
+	for (j = 1; j < w; ++j)
+	{
+		for (i = 0; i < h; ++i)
+		{
+			a = m[i][j - 1].val + e[idx(i, j, w)].hl;
+			b = i - 1 >= 0 ? m[i - 1][j - 1].val + e[idx(i, j, w)].hu : FLT_MAX;
+			c = i + 1 < h ? m[i + 1][j - 1].val + e[idx(i, j, w)].hd : FLT_MAX;
+			m[i][j].val = calc_min(a, b, c, i, &m[i][j].from);
+			k = m[i][j].from;
+			selected_pixel = (i == k) * e[idx(i, j, w)].hl +
+							 (i + 1 == k) * e[idx(i, j, w)].hd +
+							 (i - 1 == k) * e[idx(i, j, w)].hu;
+			energy_img[idx(i, j, w)].r = (selected_pixel / sc->max_energy_map) * 255;
+			energy_img[idx(i, j, w)].g = (selected_pixel / sc->max_energy_map) * 255;
+			energy_img[idx(i, j, w)].b = (selected_pixel / sc->max_energy_map) * 255;
+		}
+	}
+
+	// find the minimum number at the end column
+	for (k = 0, i = 0; i < h; ++i)
+	{
+		if (min > m[i][w - 1].val)
+		{
+			min = m[i][w - 1].val;
+			k = i;
+		}
+		printf("%.2f\t", m[i][w - 1].val);
+	}
+	printf("\n");
+	// bactrace to top and create the seam
+	sc->hseam = realloc(sc->hseam, w * sizeof(*sc->hseam));
+	for (i = w - 1; i >= 0; --i)
+	{
+		printf("%d\t", k);
+		sc->hseam[i] = k;
+		k = m[k][i].from;
+	}
+	printf("\n");
+	printf("\n");
 }
 
 inline size_t idx(size_t row, size_t col, int w)
@@ -474,6 +570,18 @@ void next_seam(seam_carve_t *sc)
 		ge_add_frame(sc->gif, 7);
 	sc->current_w += sc->current_w < sc->target_w;
 	sc->current_h += sc->current_h < sc->target_h;
+}
+bool has_next(seam_carve_t *sc)
+{
+	return sc->current_w < sc->target_w || sc->current_h < sc->target_h;
+}
+bool has_vseam(seam_carve_t *sc)
+{
+	return sc->current_w < sc->target_w;
+}
+bool has_hseam(seam_carve_t *sc)
+{
+	return sc->current_h < sc->target_h;
 }
 
 void seam_carve_free(seam_carve_t *sc)
