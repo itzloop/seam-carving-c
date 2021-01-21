@@ -7,14 +7,19 @@ $ ./main.o geese.jpg 300 100 0 1
 $ ./main.o geese.jpg 300 100 1 1
 ```
 ### Original Image:
-![Original image](https://drive.google.com/uc?id=1lAryTTbygeFwmiwnSbe-CZR8hBgIZq4K&export=download)
-
+<p align="center">
+  <img src="https://drive.google.com/uc?id=1lAryTTbygeFwmiwnSbe-CZR8hBgIZq4K&export=download" alt="Original image" />
+</p>
 ## Using backward energy
 
 <p align="center">
   <img src="https://drive.google.com/uc?id=1GMxwQKUiYhQ8GswoBGakljOCwS1OeAAB&export=download" alt="Backward Image"/>
+</p>
+
+<p align="center">
   <img src="https://drive.google.com/uc?id=1LXIR1zWSb_PvPcz04VM76owynwO8G3eC&export=download" alt="Backward Gif"/>
 </p>
+
 
 
 
@@ -22,6 +27,10 @@ $ ./main.o geese.jpg 300 100 1 1
 
 <p align="center">
   <img src="https://drive.google.com/uc?id=1-TeRC6zwukyPQfoaRwH1TSxYEMeoLhtF&export=download" alt="Forward Image"/>
+  
+</p>
+
+<p align="center">
   <img src="https://drive.google.com/uc?id=1BOZDMDtXYX4g-eT2nU3KjV52OwZg044B&export=download" alt="Forward Gif"/>
 </p>
 
